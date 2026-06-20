@@ -15,4 +15,13 @@ class QueueRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun nextQueue(id: Long): Result<QueueResponse> {
+        return try {
+            val response = apiService.nextQueue(id)
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

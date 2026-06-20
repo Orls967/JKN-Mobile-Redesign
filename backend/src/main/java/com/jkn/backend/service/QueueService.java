@@ -8,4 +8,6 @@ public interface QueueService {
     QueueResponse createQueue(CreateQueueRequest request);
 
     QueueResponse getQueueById(Long id);
+
+    QueueResponse nextQueue(Long id);
 }

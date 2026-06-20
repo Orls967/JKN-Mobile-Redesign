@@ -2,7 +2,11 @@ package com.jkn.mobile.ui.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,7 +24,9 @@ import com.jkn.mobile.ui.viewmodel.QueueViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QueueScreen(
-    viewModel: QueueViewModel = viewModel()
+    viewModel: QueueViewModel = viewModel(),
+    onNavigateToOperator: () -> Unit = {},
+    onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -37,6 +43,15 @@ fun QueueScreen(
                         text = "JKN Antrean",
                         fontWeight = FontWeight.Bold
                     )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = "Kembali",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -65,7 +80,10 @@ fun QueueScreen(
                 }
 
                 uiState.queue != null -> {
-                    QueueContent(uiState = uiState)
+                    QueueContent(
+                        uiState = uiState,
+                        onNavigateToOperator = onNavigateToOperator
+                    )
                 }
 
                 else -> {
@@ -81,10 +99,14 @@ fun QueueScreen(
 }
 
 @Composable
-private fun QueueContent(uiState: QueueUiState) {
+private fun QueueContent(
+    uiState: QueueUiState,
+    onNavigateToOperator: () -> Unit
+) {
     val queue = uiState.queue ?: return
 
     Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
@@ -161,6 +183,11 @@ private fun QueueContent(uiState: QueueUiState) {
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+
+        Spacer(modifier = Modifier.height(32.dp))
+        OutlinedButton(onClick = onNavigateToOperator) {
+            Text("Masuk ke Layar Operator")
+        }
     }
 }
 

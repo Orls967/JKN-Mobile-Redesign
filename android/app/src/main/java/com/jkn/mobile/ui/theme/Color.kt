@@ -29,3 +29,9 @@ val Gray95 = Color(0xFFF0F0F3)
 val Gray90 = Color(0xFFE1E2E5)
 val Gray10 = Color(0xFF1A1C1E)
 val Gray20 = Color(0xFF2F3033)
+
+// JKN Specifics
+val JknGradientStart = Color(0xFF00C6FF)
+val JknGradientEnd = Color(0xFF0072FF)
+val JknCardGradientStart = Color(0xFF11998E)
+val JknCardGradientEnd = Color(0xFF38EF7D)
