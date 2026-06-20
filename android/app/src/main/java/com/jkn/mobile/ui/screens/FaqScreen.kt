@@ -27,6 +27,8 @@ fun FaqScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
+            .systemBarsPadding()
+            .imePadding()
     ) {
         // Search Header
         Row(

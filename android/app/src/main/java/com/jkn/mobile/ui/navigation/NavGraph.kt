@@ -17,6 +17,7 @@ import com.jkn.mobile.ui.screen.QueueScreen
 import com.jkn.mobile.ui.screens.FaqScreen
 import com.jkn.mobile.ui.screens.HomeScreen
 import com.jkn.mobile.ui.screens.KartuScreen
+import com.jkn.mobile.ui.screens.OperatorScreen
 import com.jkn.mobile.ui.screens.ProfileScreen
 
 @Composable
@@ -60,7 +61,15 @@ fun NavGraph() {
                     ProfileScreen()
                 }
                 composable("queue") {
-                    QueueScreen()
+                    QueueScreen(
+                        onNavigateToOperator = { navController.navigate("operator") },
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                composable("operator") {
+                    OperatorScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
                 }
             }
         }

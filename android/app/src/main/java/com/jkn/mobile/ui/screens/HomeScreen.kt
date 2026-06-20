@@ -2,6 +2,8 @@ package com.jkn.mobile.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -32,6 +34,9 @@ fun HomeScreen(onNavigateToQueue: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
+            .systemBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .imePadding()
     ) {
         // Header
         Box(
@@ -147,7 +152,9 @@ fun HomeScreen(onNavigateToQueue: () -> Unit) {
         LazyVerticalGrid(
             columns = GridCells.Fixed(4),
             contentPadding = PaddingValues(horizontal = 8.dp),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 280.dp)
         ) {
             items(MockDataProvider.homeMenus) { menu ->
                 Column(

@@ -38,4 +38,23 @@ class QueueViewModel : ViewModel() {
             }
         }
     }
+
+    fun nextQueue(id: Long) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+
+            val result = repository.nextQueue(id)
+
+            result.onSuccess { queue ->
+                Log.d("QueueViewModel", "Queue advanced successfully: $queue")
+                _uiState.value = QueueUiState(isLoading = false, queue = queue)
+            }.onFailure { error ->
+                Log.e("QueueViewModel", "Error advancing queue", error)
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = error.message ?: "Unknown error"
+                )
+            }
+        }
+    }
 }
