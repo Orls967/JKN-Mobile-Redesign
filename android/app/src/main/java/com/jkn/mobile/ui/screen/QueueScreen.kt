@@ -61,6 +61,13 @@ fun QueueScreen(
         }
     }
 
+    // Listen for Backend-driven Proximity Notifications
+    LaunchedEffect(Unit) {
+        viewModel.showProximityNotifEvent.collect { remainingQueue ->
+            NotificationHelper.showProximityNotification(context, remainingQueue)
+        }
+    }
+
     // Fetch queue with ID 1 when screen first composes
     LaunchedEffect(Unit) {
         viewModel.fetchQueue(1)
@@ -163,16 +170,16 @@ private fun QueueContent(
 ) {
     val queue = uiState.queue ?: return
     val currentNumber = queue.currentNumber
-    val myTicketNumber = 65 // Uji coba notifikasi ke-65
+    val myTicketNumber = uiState.myTicketNumber
     val context = LocalContext.current
 
-    // Anti-Spam Notification Logic
-    var hasNotified by rememberSaveable(myTicketNumber) { mutableStateOf(false) }
+    // Anti-Spam Notification Logic (For Exact Call)
+    var hasNotifiedCall by rememberSaveable(myTicketNumber) { mutableStateOf(false) }
 
     LaunchedEffect(currentNumber) {
-        if (currentNumber == myTicketNumber && !hasNotified) {
+        if (currentNumber == myTicketNumber && !hasNotifiedCall) {
             NotificationHelper.showQueueNotification(context, myTicketNumber)
-            hasNotified = true
+            hasNotifiedCall = true
         }
     }
 
@@ -201,10 +208,17 @@ private fun QueueContent(
                 when {
                     currentNumber < myTicketNumber -> {
                         val remaining = myTicketNumber - currentNumber
-                        Text(text = "Status: Menunggu Dipanggil", fontWeight = FontWeight.SemiBold)
-                        Text(text = "Sisa antrean di depan Anda: $remaining orang", color = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        if (remaining <= 3) {
+                            Text(text = "Status: Bersiap", fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800))
+                            Text(text = "Nomor Anda tinggal $remaining antrean lagi!", color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        } else {
+                            Text(text = "Status: Aman", fontWeight = FontWeight.SemiBold)
+                            Text(text = "Sisa antrean di depan Anda: $remaining orang", color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
                     }
                     currentNumber == myTicketNumber -> {
                         Text(text = "Status: Sedang Dipanggil!", color = Color(0xFF4CAF50), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)

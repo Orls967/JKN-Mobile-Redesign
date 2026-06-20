@@ -41,4 +41,19 @@ object NotificationHelper {
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(ticketNumber, builder.build())
     }
+
+    fun showProximityNotification(context: Context, remainingQueue: Int) {
+        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle("Antrean Anda Hampir Dipanggil")
+            .setContentText("Nomor antrean Anda tinggal $remainingQueue nomor lagi. Silakan bersiap menuju loket.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setSound(defaultSoundUri)
+            .setAutoCancel(true)
+
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(1001, builder.build()) // Fixed ID prevents stacking multiple proximity notifications
+    }
 }
