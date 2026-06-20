@@ -10,7 +10,11 @@ class QueueRepository {
     suspend fun getQueueById(id: Long): Result<QueueResponse> {
         return try {
             val response = apiService.getQueueById(id)
-            Result.success(response)
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception(response.message))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -19,7 +23,11 @@ class QueueRepository {
     suspend fun nextQueue(id: Long): Result<QueueResponse> {
         return try {
             val response = apiService.nextQueue(id)
-            Result.success(response)
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception(response.message))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

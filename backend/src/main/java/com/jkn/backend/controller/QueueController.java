@@ -1,5 +1,6 @@
 package com.jkn.backend.controller;
 
+import com.jkn.backend.dto.ApiResponse;
 import com.jkn.backend.dto.CreateQueueRequest;
 import com.jkn.backend.dto.QueueResponse;
 import com.jkn.backend.service.QueueService;
@@ -18,20 +19,20 @@ public class QueueController {
     }
 
     @PostMapping
-    public ResponseEntity<QueueResponse> createQueue(@RequestBody CreateQueueRequest request) {
+    public ResponseEntity<ApiResponse<QueueResponse>> createQueue(@RequestBody CreateQueueRequest request) {
         QueueResponse response = queueService.createQueue(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(response));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<QueueResponse> getQueueById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<QueueResponse>> getQueueById(@PathVariable Long id) {
         QueueResponse response = queueService.getQueueById(id);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     @PutMapping("/{id}/next")
-    public ResponseEntity<QueueResponse> nextQueue(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<QueueResponse>> nextQueue(@PathVariable Long id) {
         QueueResponse response = queueService.nextQueue(id);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

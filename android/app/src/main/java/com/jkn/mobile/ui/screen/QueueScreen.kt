@@ -1,5 +1,10 @@
 package com.jkn.mobile.ui.screen
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -9,17 +14,23 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.jkn.mobile.ui.viewmodel.ConnectionStatus
 import com.jkn.mobile.ui.viewmodel.QueueUiState
 import com.jkn.mobile.ui.viewmodel.QueueViewModel
+import com.jkn.mobile.utils.NotificationHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +40,33 @@ fun QueueScreen(
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // Initialize Notification Channel
+    LaunchedEffect(Unit) {
+        NotificationHelper.createNotificationChannel(context)
+    }
+
+    // Request POST_NOTIFICATIONS Permission on Android 13+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* Do nothing, handled implicitly */ }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) 
+                != PackageManager.PERMISSION_GRANTED) {
+                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    // Listen for Backend-driven Proximity Notifications
+    LaunchedEffect(Unit) {
+        viewModel.showProximityNotifEvent.collect { remainingQueue ->
+            NotificationHelper.showProximityNotification(context, remainingQueue)
+        }
+    }
 
     // Fetch queue with ID 1 when screen first composes
     LaunchedEffect(Unit) {
@@ -60,41 +98,68 @@ fun QueueScreen(
             )
         }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
         ) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator()
-                }
+            ConnectionStatusBanner(uiState.connectionStatus)
 
-                uiState.errorMessage != null -> {
-                    ErrorContent(
-                        message = uiState.errorMessage!!,
-                        onRetry = { viewModel.fetchQueue(1) }
-                    )
-                }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                when {
+                    uiState.isLoading -> {
+                        CircularProgressIndicator()
+                    }
 
-                uiState.queue != null -> {
-                    QueueContent(
-                        uiState = uiState,
-                        onNavigateToOperator = onNavigateToOperator
-                    )
-                }
+                    uiState.errorMessage != null -> {
+                        ErrorContent(
+                            message = uiState.errorMessage!!,
+                            onRetry = { viewModel.fetchQueue(1) }
+                        )
+                    }
 
-                else -> {
-                    Text(
-                        text = "Tekan tombol untuk memuat data antrean",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    uiState.queue != null -> {
+                        QueueContent(
+                            uiState = uiState,
+                            onNavigateToOperator = onNavigateToOperator
+                        )
+                    }
+
+                    else -> {
+                        Text(
+                            text = "Tekan tombol untuk memuat data antrean",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun ConnectionStatusBanner(status: ConnectionStatus) {
+    val (color, text) = when (status) {
+        ConnectionStatus.CONNECTING -> Color(0xFFFFA000) to "Menghubungkan ke Server (Realtime)..."
+        ConnectionStatus.CONNECTED -> Color(0xFF4CAF50) to "Terhubung secara Realtime"
+        ConnectionStatus.RECONNECTING -> Color(0xFFE64A19) to "Koneksi terputus. Mencoba kembali..."
+        ConnectionStatus.DISCONNECTED -> Color.Gray to "Memuat Koneksi..."
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(color)
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = text, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -104,6 +169,19 @@ private fun QueueContent(
     onNavigateToOperator: () -> Unit
 ) {
     val queue = uiState.queue ?: return
+    val currentNumber = queue.currentNumber
+    val myTicketNumber = uiState.myTicketNumber
+    val context = LocalContext.current
+
+    // Anti-Spam Notification Logic (For Exact Call)
+    var hasNotifiedCall by rememberSaveable(myTicketNumber) { mutableStateOf(false) }
+
+    LaunchedEffect(currentNumber) {
+        if (currentNumber == myTicketNumber && !hasNotifiedCall) {
+            NotificationHelper.showQueueNotification(context, myTicketNumber)
+            hasNotifiedCall = true
+        }
+    }
 
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -117,6 +195,42 @@ private fun QueueContent(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
+        
+        // Live Queue Indicator
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(text = "Nomor Antrean Anda: $myTicketNumber", fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                when {
+                    currentNumber < myTicketNumber -> {
+                        val remaining = myTicketNumber - currentNumber
+                        if (remaining <= 3) {
+                            Text(text = "Status: Bersiap", fontWeight = FontWeight.SemiBold, color = Color(0xFFFF9800))
+                            Text(text = "Nomor Anda tinggal $remaining antrean lagi!", color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        } else {
+                            Text(text = "Status: Aman", fontWeight = FontWeight.SemiBold)
+                            Text(text = "Sisa antrean di depan Anda: $remaining orang", color = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                    currentNumber == myTicketNumber -> {
+                        Text(text = "Status: Sedang Dipanggil!", color = Color(0xFF4CAF50), fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
+                        Text(text = "Silakan segera menuju loket.")
+                    }
+                    else -> {
+                        Text(text = "Status: Sudah Terlewati", color = Color.Red, fontWeight = FontWeight.Bold)
+                        Text(text = "Nomor antrean Anda telah lewat.")
+                    }
+                }
+            }
+        }
 
         // Current Number Card
         Card(

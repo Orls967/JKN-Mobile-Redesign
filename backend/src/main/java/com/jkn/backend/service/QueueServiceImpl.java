@@ -2,6 +2,7 @@ package com.jkn.backend.service;
 
 import com.jkn.backend.dto.CreateQueueRequest;
 import com.jkn.backend.dto.QueueChangedEvent;
+import com.jkn.backend.dto.QueueProximityEvent;
 import com.jkn.backend.dto.QueueResponse;
 import com.jkn.backend.entity.QueueCounter;
 import com.jkn.backend.exception.ResourceNotFoundException;
@@ -62,6 +63,20 @@ public class QueueServiceImpl implements QueueService {
 
         // Broadcast to specific queue topic
         messagingTemplate.convertAndSend("/topic/queue/" + id, event);
+
+        // Generate and broadcast proximity events for the next 3 patients
+        int current = saved.getCurrentNumber();
+        for (int i = 1; i <= 3; i++) {
+            int targetPatientNumber = current + i;
+            QueueProximityEvent proxEvent = new QueueProximityEvent(
+                    saved.getId(),
+                    current,
+                    targetPatientNumber,
+                    i,
+                    LocalDateTime.now()
+            );
+            messagingTemplate.convertAndSend("/topic/queue/" + id + "/proximity", proxEvent);
+        }
 
         return mapToResponse(saved);
     }

@@ -3,17 +3,37 @@ package com.jkn.mobile.ui.viewmodel
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
+import com.jkn.mobile.data.model.QueueChangedEvent
+import com.jkn.mobile.data.model.QueueProximityEvent
 import com.jkn.mobile.data.model.QueueResponse
+import com.jkn.mobile.data.remote.RetrofitClient
+import com.jkn.mobile.data.remote.WebSocketManager
 import com.jkn.mobile.data.repository.QueueRepository
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.hildan.krossbow.stomp.subscribeText
+
+enum class ConnectionStatus {
+    CONNECTING,
+    CONNECTED,
+    RECONNECTING,
+    DISCONNECTED
+}
 
 data class QueueUiState(
-    val isLoading: Boolean = false,
     val queue: QueueResponse? = null,
-    val errorMessage: String? = null
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
+    val connectionStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED,
+    val myTicketNumber: Int = 75 // Centralized hardcoded ticket for testing
 )
 
 class QueueViewModel : ViewModel() {
@@ -22,19 +42,98 @@ class QueueViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(QueueUiState())
     val uiState: StateFlow<QueueUiState> = _uiState.asStateFlow()
+    
+    private var isWebSocketConnected = false
+    private var hasReceivedProximityNotification = false
+
+    // Event bus for one-time Proximity Notification
+    private val _showProximityNotifEvent = MutableSharedFlow<Int>()
+    val showProximityNotifEvent = _showProximityNotifEvent.asSharedFlow()
 
     fun fetchQueue(id: Long) {
         viewModelScope.launch {
-            _uiState.value = QueueUiState(isLoading = true)
-
+            _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             val result = repository.getQueueById(id)
-
+            
             result.onSuccess { queue ->
+                _uiState.value = _uiState.value.copy(
+                    queue = queue,
+                    isLoading = false
+                )
                 Log.d("QueueViewModel", "Queue fetched successfully: $queue")
-                _uiState.value = QueueUiState(queue = queue)
-            }.onFailure { error ->
-                Log.e("QueueViewModel", "Error fetching queue", error)
-                _uiState.value = QueueUiState(errorMessage = error.message ?: "Unknown error")
+
+                // Start WebSocket connection after REST fetch succeeds
+                connectWebSocket(id)
+            }.onFailure { e ->
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = e.message ?: "Failed to fetch queue"
+                )
+                Log.e("QueueViewModel", "Fetch error", e)
+            }
+        }
+    }
+
+    private fun connectWebSocket(id: Long) {
+        if (isWebSocketConnected) return
+        isWebSocketConnected = true
+        
+        viewModelScope.launch {
+            var retryDelay = 1000L
+            val maxDelay = 5000L
+            while (isActive) {
+                try {
+                    _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.CONNECTING)
+                    val session = WebSocketManager.stompClient.connect(WebSocketManager.WS_URL)
+                    _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.CONNECTED)
+                    retryDelay = 1000L // Reset delay on successful connection
+                    
+                    // Launch 1: Standard QueueChangedEvent Listener
+                    launch {
+                        val subscription = session.subscribeText("/topic/queue/$id")
+                        subscription.collect { payload ->
+                            try {
+                                val event = Gson().fromJson(payload, QueueChangedEvent::class.java)
+                                _uiState.value = _uiState.value.copy(
+                                    queue = _uiState.value.queue?.copy(
+                                        currentNumber = event.currentNumber,
+                                        nextNumber = event.nextNumber,
+                                        updatedAt = event.timestamp
+                                    )
+                                )
+                                Log.d("QueueViewModel", "Received realtime update: $event")
+                            } catch (e: Exception) {
+                                Log.e("QueueViewModel", "Failed to parse JSON: $payload", e)
+                            }
+                        }
+                    }
+
+                    // Launch 2: Smart Proximity Listener
+                    launch {
+                        val proxSubscription = session.subscribeText("/topic/queue/$id/proximity")
+                        proxSubscription.collect { payload ->
+                            try {
+                                val event = Gson().fromJson(payload, QueueProximityEvent::class.java)
+                                // Anti-Spam Check
+                                if (event.patientNumber == _uiState.value.myTicketNumber && !hasReceivedProximityNotification) {
+                                    hasReceivedProximityNotification = true
+                                    _showProximityNotifEvent.emit(event.remainingQueue)
+                                }
+                            } catch (e: Exception) {
+                                Log.e("QueueViewModel", "Failed to parse Proximity JSON: $payload", e)
+                            }
+                        }
+                    }
+
+                    // Await closure manually if connection drops
+                    awaitCancellation()
+
+                } catch (e: Exception) {
+                    Log.e("QueueViewModel", "WebSocket disconnected", e)
+                    _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.RECONNECTING)
+                    delay(retryDelay)
+                    retryDelay = (retryDelay * 2).coerceAtMost(maxDelay)
+                }
             }
         }
     }
@@ -47,7 +146,7 @@ class QueueViewModel : ViewModel() {
 
             result.onSuccess { queue ->
                 Log.d("QueueViewModel", "Queue advanced successfully: $queue")
-                _uiState.value = QueueUiState(isLoading = false, queue = queue)
+                _uiState.value = _uiState.value.copy(isLoading = false, queue = queue)
             }.onFailure { error ->
                 Log.e("QueueViewModel", "Error advancing queue", error)
                 _uiState.value = _uiState.value.copy(

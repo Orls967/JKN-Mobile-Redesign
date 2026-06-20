@@ -74,6 +74,10 @@ dependencies {
     // OkHttp (logging interceptor)
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 
+    // Krossbow (STOMP WebSocket)
+    implementation("org.hildan.krossbow:krossbow-stomp-core:5.12.0")
+    implementation("org.hildan.krossbow:krossbow-websocket-okhttp:5.12.0")
+
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
