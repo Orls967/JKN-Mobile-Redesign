@@ -28,4 +28,10 @@ public class QueueController {
         QueueResponse response = queueService.getQueueById(id);
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/{id}/next")
+    public ResponseEntity<QueueResponse> nextQueue(@PathVariable Long id) {
+        QueueResponse response = queueService.nextQueue(id);
+        return ResponseEntity.ok(response);
+    }
 }
