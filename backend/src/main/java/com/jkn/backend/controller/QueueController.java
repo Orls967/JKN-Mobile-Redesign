@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/queues")
 public class QueueController {
@@ -22,6 +24,12 @@ public class QueueController {
     public ResponseEntity<ApiResponse<QueueResponse>> createQueue(@RequestBody CreateQueueRequest request) {
         QueueResponse response = queueService.createQueue(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(response));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<QueueResponse>>> getAllQueues() {
+        List<QueueResponse> responses = queueService.getAllQueues();
+        return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     @GetMapping("/{id}")
