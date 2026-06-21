@@ -58,7 +58,17 @@ fun NavGraph() {
                     FaqScreen()
                 }
                 composable("profil") {
-                    ProfileScreen()
+                    ProfileScreen(
+                        onNavigateToFaq = { 
+                            navController.navigate("faq") {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
                 }
                 composable("queue") {
                     QueueScreen(

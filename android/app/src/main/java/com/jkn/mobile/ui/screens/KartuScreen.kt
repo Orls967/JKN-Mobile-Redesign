@@ -19,6 +19,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jkn.mobile.data.MockDataProvider
@@ -48,14 +49,13 @@ fun KartuScreen() {
         // Digital BPJS Card
         Card(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp),
+                .fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .background(
                         brush = Brush.horizontalGradient(
                             colors = listOf(JknCardGradientStart, JknCardGradientEnd)
@@ -63,16 +63,23 @@ fun KartuScreen() {
                     )
                     .padding(24.dp)
             ) {
-                Column(modifier = Modifier.fillMaxSize()) {
-                    Text(
-                        text = "KARTU INDONESIA SEHAT",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "KARTU INDONESIA SEHAT",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
 
-                    Row(verticalAlignment = Alignment.Bottom) {
+                    Row(verticalAlignment = Alignment.Top) {
                         // Avatar placeholder
                         Box(
                             modifier = Modifier
@@ -104,10 +111,40 @@ fun KartuScreen() {
                                 color = Color.White,
                                 fontSize = 14.sp
                             )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Faskes 1: ${profile.faskes}",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "Kelas: ${profile.kelas}",
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                            Text(
+                                text = "Status: ${profile.status}",
+                                color = Color.Green,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                modifier = Modifier
+                                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
                         }
                     }
                 }
             }
         }
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Text(
+            text = "DISCLAIMER: Data yang ditampilkan pada halaman ini adalah data simulasi (mock) untuk keperluan prototipe aplikasi Mobile JKN.",
+            fontSize = 12.sp,
+            color = Color.Gray,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
     }
 }

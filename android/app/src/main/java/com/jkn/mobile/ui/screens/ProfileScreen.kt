@@ -1,6 +1,7 @@
 package com.jkn.mobile.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -23,7 +24,7 @@ import com.jkn.mobile.ui.theme.JknGradientEnd
 import com.jkn.mobile.ui.theme.JknGradientStart
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(onNavigateToFaq: () -> Unit = {}) {
     val profile = MockDataProvider.profile
 
     LazyColumn(
@@ -77,7 +78,13 @@ fun ProfileScreen() {
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 16.sp
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = profile.email,
+                                    color = Color.Gray,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
                                 OutlinedButton(
                                     onClick = { },
                                     shape = RoundedCornerShape(20.dp)
@@ -117,6 +124,11 @@ fun ProfileScreen() {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .clickable {
+                                    if (menu.first == "Bantuan & FAQ") {
+                                        onNavigateToFaq()
+                                    }
+                                }
                                 .padding(horizontal = 16.dp, vertical = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
