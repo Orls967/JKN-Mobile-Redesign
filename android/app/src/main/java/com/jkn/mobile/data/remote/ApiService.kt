@@ -8,6 +8,9 @@ import retrofit2.http.Path
 
 interface ApiService {
 
+    @GET("api/queues")
+    suspend fun getQueues(): ApiResponse<List<QueueResponse>>
+
     @GET("api/queues/{id}")
     suspend fun getQueueById(@Path("id") id: Long): ApiResponse<QueueResponse>
 
