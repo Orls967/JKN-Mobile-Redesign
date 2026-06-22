@@ -23,6 +23,19 @@ class QueueRepository {
     private val apiService = RetrofitClient.apiService
     private val crashlytics = FirebaseCrashlytics.getInstance()
 
+    suspend fun getQueues(): Result<List<QueueResponse>> {
+        return try {
+            val response = apiService.getQueues()
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception(response.message))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun getQueueById(id: Long): Result<QueueResponse> {
         return try {
             val response = apiService.getQueueById(id)

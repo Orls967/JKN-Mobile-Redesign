@@ -82,7 +82,7 @@ class QueueViewModel : ViewModel() {
     private fun connectWebSocket(id: Long) {
         if (isWebSocketConnected) return
         isWebSocketConnected = true
-        
+
         viewModelScope.launch {
             var retryDelay = 1000L
             val maxDelay = 5000L
@@ -98,51 +98,56 @@ class QueueViewModel : ViewModel() {
                     retryCount = 0
                     // Story 1.5 — Log successful WebSocket connection
                     crashlytics.log("WebSocket connected successfully")
-                    
                     // Launch 1: Standard QueueChangedEvent Listener
                     launch {
-                        val subscription = session.subscribeText("/topic/queue/$id")
-                        subscription.collect { payload ->
-                            try {
-                                val event = Gson().fromJson(payload, QueueChangedEvent::class.java)
-                                _uiState.value = _uiState.value.copy(
-                                    queue = _uiState.value.queue?.copy(
-                                        currentNumber = event.currentNumber,
-                                        nextNumber = event.nextNumber,
-                                        updatedAt = event.timestamp
+                        try { // <--- PERBAIKAN: Tambahan Try-Catch di sini
+                            val subscription = session.subscribeText("/topic/queue/$id")
+                            subscription.collect { payload ->
+                                try {
+                                    val event = Gson().fromJson(payload, QueueChangedEvent::class.java)
+                                    _uiState.value = _uiState.value.copy(
+                                        queue = _uiState.value.queue?.copy(
+                                            currentNumber = event.currentNumber,
+                                            nextNumber = event.nextNumber,
+                                            updatedAt = event.timestamp
+                                        )
                                     )
-                                )
-                                Log.d("QueueViewModel", "Received realtime update: $event")
-                            } catch (e: Exception) {
-                                Log.e("QueueViewModel", "Failed to parse JSON: $payload", e)
-                                // Story 1.5 — Record subscription JSON parse failure
-                                crashlytics.log("STOMP subscription parse failure on /topic/queue/$id")
-                                crashlytics.recordException(
-                                    Exception("STOMP Subscription Parse Failure [queue/$id]", e)
-                                )
+                                    Log.d("QueueViewModel", "Received realtime update: $event")
+                                } catch (e: Exception) {
+                                    Log.e("QueueViewModel", "Failed to parse JSON: $payload", e)
+                                    // Story 1.5 — Record subscription JSON parse failure
+                                    crashlytics.log("STOMP subscription parse failure on /topic/queue/$id")
+                                    crashlytics.recordException(
+                                        Exception("STOMP Subscription Parse Failure [queue/$id]", e)
+                                    )
+                                }
                             }
+                        } catch (e: Exception) {
+                            Log.e("QueueViewModel", "Koneksi baca WebSocket 1 terputus", e)
                         }
                     }
 
                     // Launch 2: Smart Proximity Listener
                     launch {
-                        val proxSubscription = session.subscribeText("/topic/queue/$id/proximity")
-                        proxSubscription.collect { payload ->
-                            try {
-                                val event = Gson().fromJson(payload, QueueProximityEvent::class.java)
-                                // Anti-Spam Check
-                                if (event.patientNumber == _uiState.value.myTicketNumber && !hasReceivedProximityNotification) {
-                                    hasReceivedProximityNotification = true
-                                    _showProximityNotifEvent.emit(event.remainingQueue)
+                        try { // <--- PERBAIKAN: Tambahan Try-Catch di sini
+                            val proxSubscription = session.subscribeText("/topic/queue/$id/proximity")
+                            proxSubscription.collect { payload ->
+                                try {
+                                    val event = Gson().fromJson(payload, QueueProximityEvent::class.java)
+                                    if (event.patientNumber == _uiState.value.myTicketNumber && !hasReceivedProximityNotification) {
+                                        hasReceivedProximityNotification = true
+                                        _showProximityNotifEvent.emit(event.remainingQueue)
+                                    }
+                                    Log.e("QueueViewModel", "Failed to parse Proximity JSON: $payload", e)
+                                    // Story 1.5 — Record proximity subscription parse failure
+                                    crashlytics.log("STOMP subscription parse failure on /topic/queue/$id/proximity")
+                                    crashlytics.recordException(
+                                        Exception("STOMP Subscription Parse Failure [proximity]", e)
+                                    )
                                 }
-                            } catch (e: Exception) {
-                                Log.e("QueueViewModel", "Failed to parse Proximity JSON: $payload", e)
-                                // Story 1.5 — Record proximity subscription parse failure
-                                crashlytics.log("STOMP subscription parse failure on /topic/queue/$id/proximity")
-                                crashlytics.recordException(
-                                    Exception("STOMP Subscription Parse Failure [proximity]", e)
-                                )
                             }
+                        } catch (e: Exception) {
+                            Log.e("QueueViewModel", "Koneksi baca WebSocket 2 terputus", e)
                         }
                     }
 
