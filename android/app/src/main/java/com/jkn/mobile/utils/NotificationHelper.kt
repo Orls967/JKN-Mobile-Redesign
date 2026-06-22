@@ -6,6 +6,7 @@ import android.content.Context
 import android.media.RingtoneManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 object NotificationHelper {
     private const val CHANNEL_ID = "jkn_queue_channel"
@@ -28,32 +29,53 @@ object NotificationHelper {
     }
 
     fun showQueueNotification(context: Context, ticketNumber: Int) {
-        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        try {
+            val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Nomor Antrean Anda Dipanggil")
-            .setContentText("Nomor antrean Anda ($ticketNumber) sedang dipanggil. Silakan menuju loket sekarang.")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSound(defaultSoundUri)
-            .setAutoCancel(true)
+            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("Nomor Antrean Anda Dipanggil")
+                .setContentText("Nomor antrean Anda ($ticketNumber) sedang dipanggil. Silakan menuju loket sekarang.")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setSound(defaultSoundUri)
+                .setAutoCancel(true)
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(ticketNumber, builder.build())
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(ticketNumber, builder.build())
+
+            // Story 1.5 — Log successful queue called notification
+            FirebaseCrashlytics.getInstance().log("Queue called notification triggered: ticket=$ticketNumber")
+        } catch (e: Exception) {
+            // Story 1.5 — Record notification failure to Crashlytics
+            FirebaseCrashlytics.getInstance().recordException(
+                Exception("Notification Failure [Queue Called]: ${e.message}", e)
+            )
+        }
     }
 
     fun showProximityNotification(context: Context, remainingQueue: Int) {
-        val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        try {
+            val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("Antrean Anda Hampir Dipanggil")
-            .setContentText("Nomor antrean Anda tinggal $remainingQueue nomor lagi. Silakan bersiap menuju loket.")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setSound(defaultSoundUri)
-            .setAutoCancel(true)
+            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("Antrean Anda Hampir Dipanggil")
+                .setContentText("Nomor antrean Anda tinggal $remainingQueue nomor lagi. Silakan bersiap menuju loket.")
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .setSound(defaultSoundUri)
+                .setAutoCancel(true)
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(1001, builder.build()) // Fixed ID prevents stacking multiple proximity notifications
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(1001, builder.build()) // Fixed ID prevents stacking multiple proximity notifications
+
+            // Story 1.5 — Log successful proximity notification
+            FirebaseCrashlytics.getInstance().log("Proximity notification triggered: remaining=$remainingQueue")
+        } catch (e: Exception) {
+            // Story 1.5 — Record notification failure to Crashlytics
+            FirebaseCrashlytics.getInstance().recordException(
+                Exception("Notification Failure [Proximity]: ${e.message}", e)
+            )
+        }
     }
 }
+
