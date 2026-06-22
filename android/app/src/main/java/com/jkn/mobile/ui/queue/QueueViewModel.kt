@@ -18,12 +18,17 @@ class QueueViewModel : ViewModel() {
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
 
+    init {
+        viewModelScope.launch {
+            webSocketClient.connectionStatus.collect { status ->
+                _isConnected.value = (status == com.jkn.mobile.ui.viewmodel.ConnectionStatus.CONNECTED)
+            }
+        }
+    }
+
     fun connectAndSubscribe(queueId: Long) {
         viewModelScope.launch {
-            webSocketClient.connect()
-            _isConnected.value = true
-
-            webSocketClient.subscribeToQueue(queueId).collect { event ->
+            webSocketClient.connectAndSubscribe(queueId).collect { event ->
                 _queueState.value = event
             }
         }
@@ -31,8 +36,6 @@ class QueueViewModel : ViewModel() {
 
     override fun onCleared() {
         super.onCleared()
-        viewModelScope.launch {
-            webSocketClient.disconnect()
-        }
+        // Krossbow session is now automatically disconnected when viewModelScope is cancelled.
     }
 }

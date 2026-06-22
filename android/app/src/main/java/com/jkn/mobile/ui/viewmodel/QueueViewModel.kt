@@ -138,6 +138,7 @@ class QueueViewModel : ViewModel() {
                                         hasReceivedProximityNotification = true
                                         _showProximityNotifEvent.emit(event.remainingQueue)
                                     }
+                                } catch (e: Exception) {
                                     Log.e("QueueViewModel", "Failed to parse Proximity JSON: $payload", e)
                                     // Story 1.5 — Record proximity subscription parse failure
                                     crashlytics.log("STOMP subscription parse failure on /topic/queue/$id/proximity")
