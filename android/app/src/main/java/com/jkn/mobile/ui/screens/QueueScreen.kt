@@ -1,4 +1,4 @@
-package com.jkn.mobile.ui.screen
+package com.jkn.mobile.ui.screens
 
 import android.Manifest
 import android.content.pm.PackageManager
