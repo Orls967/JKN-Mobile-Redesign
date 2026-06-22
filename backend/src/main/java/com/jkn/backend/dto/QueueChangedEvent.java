@@ -1,21 +1,21 @@
 package com.jkn.backend.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public class QueueChangedEvent {
     private Long queueId;
     private Integer currentNumber;
     private Integer nextNumber;
-    private LocalDateTime timestamp;
+    private long timestamp;
 
     public QueueChangedEvent() {
     }
 
-    public QueueChangedEvent(Long queueId, Integer currentNumber, Integer nextNumber, LocalDateTime timestamp) {
+    public QueueChangedEvent(Long queueId, Integer currentNumber, Integer nextNumber) {
         this.queueId = queueId;
         this.currentNumber = currentNumber;
         this.nextNumber = nextNumber;
-        this.timestamp = timestamp;
+        this.timestamp = Instant.now().toEpochMilli(); 
     }
 
     public Long getQueueId() {
@@ -42,11 +42,11 @@ public class QueueChangedEvent {
         this.nextNumber = nextNumber;
     }
 
-    public LocalDateTime getTimestamp() {
+    public long getTimestamp() {
         return timestamp;
     }
 
-    public void setTimestamp(LocalDateTime timestamp) {
+    public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
     }
 }
