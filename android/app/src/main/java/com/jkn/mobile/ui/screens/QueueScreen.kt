@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.jkn.mobile.ui.viewmodel.ConnectionStatus
 import com.jkn.mobile.ui.viewmodel.QueueUiState
 import com.jkn.mobile.ui.viewmodel.QueueViewModel

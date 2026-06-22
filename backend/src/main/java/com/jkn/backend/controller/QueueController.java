@@ -43,4 +43,10 @@ public class QueueController {
         QueueResponse response = queueService.nextQueue(id);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalStateException(IllegalStateException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ApiResponse.error(HttpStatus.CONFLICT.value(), ex.getMessage()));
+    }
 }
