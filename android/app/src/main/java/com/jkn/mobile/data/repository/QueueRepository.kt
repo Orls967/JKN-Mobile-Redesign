@@ -45,6 +45,9 @@ class QueueRepository {
             crashlytics.apply {
                 setCustomKey("layer", "repository")
                 setCustomKey("http_status_code", e.code())
+                e.response()?.raw()?.request?.url?.toString()?.let { url ->
+                    setCustomKey("request_url", url)
+                }
                 recordException(e)
             }
             Result.failure(e)
@@ -82,6 +85,9 @@ class QueueRepository {
             crashlytics.apply {
                 setCustomKey("layer", "repository")
                 setCustomKey("http_status_code", e.code())
+                e.response()?.raw()?.request?.url?.toString()?.let { url ->
+                    setCustomKey("request_url", url)
+                }
                 recordException(e)
             }
             Result.failure(e)
