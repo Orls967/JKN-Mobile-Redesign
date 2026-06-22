@@ -31,6 +31,9 @@ public class QueueCounter {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(name = "last_number", nullable = false, columnDefinition = "integer default 50")
+    private Integer lastNumber = 50;
+
     public QueueCounter() {
     }
 
@@ -60,4 +63,7 @@ public class QueueCounter {
 
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    public Integer getLastNumber() { return lastNumber; }
+    public void setLastNumber(Integer lastNumber) { this.lastNumber = lastNumber; }
 }
