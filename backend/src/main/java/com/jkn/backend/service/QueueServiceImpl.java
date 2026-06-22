@@ -1,18 +1,16 @@
 package com.jkn.backend.service;
 
 import com.jkn.backend.dto.CreateQueueRequest;
-import com.jkn.backend.dto.QueueChangedEvent;
-import com.jkn.backend.dto.QueueProximityEvent;
 import com.jkn.backend.dto.QueueResponse;
 import com.jkn.backend.entity.QueueCallLog;
 import com.jkn.backend.entity.QueueCounter;
 import com.jkn.backend.exception.ResourceNotFoundException;
+import com.jkn.backend.publisher.QueueEventPublisher;
 import com.jkn.backend.repository.QueueCallLogRepository;
 import com.jkn.backend.repository.QueueCounterRepository;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -21,12 +19,12 @@ public class QueueServiceImpl implements QueueService {
 
     private final QueueCounterRepository queueCounterRepository;
     private final QueueCallLogRepository queueCallLogRepository;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final QueueEventPublisher queueEventPublisher;
 
-    public QueueServiceImpl(QueueCounterRepository queueCounterRepository, QueueCallLogRepository queueCallLogRepository, SimpMessagingTemplate messagingTemplate) {
+    public QueueServiceImpl(QueueCounterRepository queueCounterRepository, QueueCallLogRepository queueCallLogRepository, QueueEventPublisher queueEventPublisher) {
         this.queueCounterRepository = queueCounterRepository;
         this.queueCallLogRepository = queueCallLogRepository;
-        this.messagingTemplate = messagingTemplate;
+        this.queueEventPublisher = queueEventPublisher;
     }
 
     @Override
@@ -56,9 +54,14 @@ public class QueueServiceImpl implements QueueService {
     }
 
     @Override
+    @Transactional
     public QueueResponse nextQueue(Long id) {
-        QueueCounter queueCounter = queueCounterRepository.findById(id)
+        QueueCounter queueCounter = queueCounterRepository.findByIdForUpdate(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Queue not found with id: " + id));
+
+        if (queueCounter.getCurrentNumber() >= queueCounter.getLastNumber()) {
+            throw new IllegalStateException("Antrean sudah habis");
+        }
 
         // Update logic: currentNumber becomes the old nextNumber, nextNumber increments by 1
         queueCounter.setCurrentNumber(queueCounter.getNextNumber());
@@ -70,30 +73,9 @@ public class QueueServiceImpl implements QueueService {
         QueueCallLog callLog = new QueueCallLog(saved.getId(), saved.getCurrentNumber());
         queueCallLogRepository.save(callLog);
 
-        // Build Event payload
-        QueueChangedEvent event = new QueueChangedEvent(
-                saved.getId(),
-                saved.getCurrentNumber(),
-                saved.getNextNumber(),
-                LocalDateTime.now()
-        );
-
-        // Broadcast to specific queue topic
-        messagingTemplate.convertAndSend("/topic/queue/" + id, event);
-
-        // Generate and broadcast proximity events for the next 3 patients
-        int current = saved.getCurrentNumber();
-        for (int i = 1; i <= 3; i++) {
-            int targetPatientNumber = current + i;
-            QueueProximityEvent proxEvent = new QueueProximityEvent(
-                    saved.getId(),
-                    current,
-                    targetPatientNumber,
-                    i,
-                    LocalDateTime.now()
-            );
-            messagingTemplate.convertAndSend("/topic/queue/" + id + "/proximity", proxEvent);
-        }
+        // Broadcast using the dedicated publisher
+        queueEventPublisher.publishQueueChanged(saved);
+        queueEventPublisher.publishQueueProximity(saved);
 
         return mapToResponse(saved);
     }
