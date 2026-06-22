@@ -13,7 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.jkn.mobile.ui.components.BottomNavigationBar
-import com.jkn.mobile.ui.screen.QueueScreen
+import com.jkn.mobile.ui.screens.QueueScreen
 import com.jkn.mobile.ui.screens.FaqScreen
 import com.jkn.mobile.ui.screens.HomeScreen
 import com.jkn.mobile.ui.screens.KartuScreen
