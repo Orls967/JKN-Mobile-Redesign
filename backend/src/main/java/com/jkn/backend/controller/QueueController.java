@@ -2,10 +2,12 @@ package com.jkn.backend.controller;
 
 import com.jkn.backend.dto.ApiResponse;
 import com.jkn.backend.dto.CreateQueueRequest;
+import com.jkn.backend.dto.QueueChangedEvent;
 import com.jkn.backend.dto.QueueResponse;
 import com.jkn.backend.service.QueueService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,9 +17,11 @@ import java.util.List;
 public class QueueController {
 
     private final QueueService queueService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public QueueController(QueueService queueService) {
+    public QueueController(QueueService queueService, SimpMessagingTemplate messagingTemplate) {
         this.queueService = queueService;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @PostMapping
@@ -41,6 +45,15 @@ public class QueueController {
     @PutMapping("/{id}/next")
     public ResponseEntity<ApiResponse<QueueResponse>> nextQueue(@PathVariable Long id) {
         QueueResponse response = queueService.nextQueue(id);
+        
+        QueueChangedEvent eventPayload = new QueueChangedEvent(
+                id, 
+                response.getCurrentNumber(), 
+                response.getCurrentNumber() + 1
+        );
+        
+        messagingTemplate.convertAndSend("/topic/queue/" + id, eventPayload);
+        
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }
