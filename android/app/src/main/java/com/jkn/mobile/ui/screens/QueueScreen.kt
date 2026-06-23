@@ -299,10 +299,7 @@ private fun QueueContent(
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
-        OutlinedButton(onClick = onNavigateToOperator) {
-            Text("Masuk ke Layar Operator")
-        }
+
     }
 }
 

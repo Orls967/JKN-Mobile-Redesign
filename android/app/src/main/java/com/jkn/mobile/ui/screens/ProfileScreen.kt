@@ -61,7 +61,10 @@ val settingsItems = listOf(
 )
 
 @Composable
-fun ProfileScreen(onNavigateToFaq: () -> Unit = {}) {
+fun ProfileScreen(
+    onNavigateToFaq: () -> Unit = {},
+    onLogout: () -> Unit = {}
+) {
     val profile = MockDataProvider.profile
 
     var aksesibilitasEnabled by remember { mutableStateOf(false) }
@@ -170,6 +173,8 @@ fun ProfileScreen(onNavigateToFaq: () -> Unit = {}) {
                             onClick = {
                                 if (item.label == "Panduan") {
                                     onNavigateToFaq()
+                                } else if (item.label == "Keluar") {
+                                    onLogout()
                                 }
                             }
                         )
