@@ -52,7 +52,7 @@ fun NavGraph() {
 
         composable(Screen.OperatorFlow.route) {
             OperatorScreen(
-                onNavigateBack = {
+                onLogout = {
                     navController.navigate(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
@@ -122,7 +122,6 @@ fun PatientShellScreen(onLogout: () -> Unit) {
                 }
                 composable("queue") {
                     QueueScreen(
-                        onNavigateToOperator = { /* Removed in separated role */ },
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
