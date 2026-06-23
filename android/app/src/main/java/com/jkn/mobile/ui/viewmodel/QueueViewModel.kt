@@ -52,28 +52,36 @@ class QueueViewModel : ViewModel() {
     private val _showProximityNotifEvent = MutableSharedFlow<Int>()
     val showProximityNotifEvent = _showProximityNotifEvent.asSharedFlow()
 
-    fun fetchQueue(id: Long) {
+    fun fetchDefaultQueue() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            val result = repository.getQueueById(id)
+            val listResult = repository.getQueues()
             
-            result.onSuccess { queue ->
-                _uiState.value = _uiState.value.copy(
-                    queue = queue,
-                    isLoading = false
-                )
-                Log.d("QueueViewModel", "Queue fetched successfully: $queue")
+            listResult.onSuccess { queues ->
+                val queue = queues.firstOrNull()
+                if (queue != null) {
+                    _uiState.value = _uiState.value.copy(
+                        queue = queue,
+                        isLoading = false
+                    )
+                    Log.d("QueueViewModel", "Queue fetched successfully: $queue")
 
-                // Start WebSocket connection after REST fetch succeeds
-                connectWebSocket(id)
+                    // Start WebSocket connection after REST fetch succeeds
+                    connectWebSocket(queue.id)
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        errorMessage = "Tidak ada antrean yang tersedia"
+                    )
+                }
             }.onFailure { e ->
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = e.message ?: "Failed to fetch queue"
+                    errorMessage = e.message ?: "Failed to fetch queues"
                 )
                 Log.e("QueueViewModel", "Fetch error", e)
                 // Story 1.5 — Record REST fetch failure to Crashlytics
-                crashlytics.log("REST fetchQueue failed for id=$id")
+                crashlytics.log("REST fetchQueues failed")
                 crashlytics.recordException(e)
             }
         }
@@ -109,7 +117,7 @@ class QueueViewModel : ViewModel() {
                                         queue = _uiState.value.queue?.copy(
                                             currentNumber = event.currentNumber,
                                             nextNumber = event.nextNumber,
-                                            updatedAt = event.timestamp
+                                            updatedAt = event.timestamp.toString()
                                         )
                                     )
                                     Log.d("QueueViewModel", "Received realtime update: $event")
@@ -138,6 +146,7 @@ class QueueViewModel : ViewModel() {
                                         hasReceivedProximityNotification = true
                                         _showProximityNotifEvent.emit(event.remainingQueue)
                                     }
+                                } catch (e: Exception) {
                                     Log.e("QueueViewModel", "Failed to parse Proximity JSON: $payload", e)
                                     // Story 1.5 — Record proximity subscription parse failure
                                     crashlytics.log("STOMP subscription parse failure on /topic/queue/$id/proximity")

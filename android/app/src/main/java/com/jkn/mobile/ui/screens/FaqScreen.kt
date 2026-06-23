@@ -1,6 +1,5 @@
 package com.jkn.mobile.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,10 +7,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,12 +18,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.jkn.mobile.data.FaqItem
 import com.jkn.mobile.data.MockDataProvider
-import com.jkn.mobile.ui.theme.JknGradientEnd
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FaqScreen() {
+    var searchQuery by remember { mutableStateOf("") }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -41,72 +41,84 @@ fun FaqScreen() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
-                value = "",
-                onValueChange = {},
-                placeholder = { Text("Cari Pertanyaan", color = JknGradientEnd) },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp),
-                shape = RoundedCornerShape(8.dp),
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                label = { Text("Cari Pertanyaan") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = JknGradientEnd,
-                    unfocusedBorderColor = JknGradientEnd
+                    focusedBorderColor = Color(0xFF1976D2),
+                    focusedLabelColor = Color(0xFF1976D2),
+                    unfocusedBorderColor = Color(0xFF1976D2),
+                    unfocusedLabelColor = Color(0xFF1976D2)
                 )
             )
             Spacer(modifier = Modifier.width(8.dp))
             Button(
-                onClick = { },
-                modifier = Modifier.height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = JknGradientEnd),
-                shape = RoundedCornerShape(8.dp)
+                onClick = { /* trigger search */ },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2)),
+                shape = RoundedCornerShape(4.dp),
+                modifier = Modifier.height(56.dp) // match standard textfield height
             ) {
-                Icon(Icons.Default.Search, contentDescription = null)
+                Icon(Icons.Default.Search, contentDescription = null, tint = Color.White)
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Cari")
+                Text("Cari", color = Color.White)
             }
         }
 
-        Divider(color = Color.LightGray, thickness = 1.dp)
+        HorizontalDivider(color = Color.LightGray, thickness = 1.dp)
 
         // FAQ List
         LazyColumn {
             items(MockDataProvider.faqs) { faq ->
-                var expanded by remember { mutableStateOf(false) }
-                
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { expanded = !expanded }
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = faq.question,
-                            modifier = Modifier.weight(1f),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color.Gray)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(text = faq.views, fontSize = 12.sp, color = Color.Gray)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(if (expanded) Icons.Default.KeyboardArrowDown else Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.Gray)
-                        }
-                    }
-                    AnimatedVisibility(visible = expanded) {
-                        Text(
-                            text = faq.answer,
-                            fontSize = 14.sp,
-                            color = Color.DarkGray,
-                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
-                        )
-                    }
-                    Divider(color = Color.LightGray, thickness = 0.5.dp)
-                }
+                FaqListItem(faq = faq, onClick = { /* navigate to answer */ })
+                HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp)
+            }
+            item {
+                Spacer(modifier = Modifier.height(100.dp))
             }
         }
+    }
+}
+
+@Composable
+fun FaqListItem(faq: FaqItem, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Pertanyaan (kiri, expand)
+        Text(
+            text = faq.question,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        // View count
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Default.Visibility,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = Color.Gray
+            )
+            Spacer(modifier = Modifier.width(2.dp))
+            Text(
+                faq.views,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.Gray
+            )
+        }
+        Spacer(modifier = Modifier.width(4.dp))
+        // Chevron kanan
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = Color.Gray
+        )
     }
 }

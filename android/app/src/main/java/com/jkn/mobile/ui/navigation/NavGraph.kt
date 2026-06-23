@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.jkn.mobile.data.Role
 import com.jkn.mobile.ui.components.BottomNavigationBar
 import com.jkn.mobile.ui.screens.QueueScreen
 import com.jkn.mobile.ui.screens.FaqScreen
@@ -19,9 +20,60 @@ import com.jkn.mobile.ui.screens.HomeScreen
 import com.jkn.mobile.ui.screens.KartuScreen
 import com.jkn.mobile.ui.screens.OperatorScreen
 import com.jkn.mobile.ui.screens.ProfileScreen
+import com.jkn.mobile.ui.screens.BeritaScreen
+import com.jkn.mobile.ui.screens.AntreanFaskesPertamaScreen
+import com.jkn.mobile.ui.screens.LoginScreen
+
+sealed class Screen(val route: String) {
+    object Login : Screen("login")
+    object UserFlow : Screen("user_flow")
+    object OperatorFlow : Screen("operator_flow")
+}
 
 @Composable
 fun NavGraph() {
+    val navController = rememberNavController()
+
+    NavHost(navController = navController, startDestination = Screen.Login.route) {
+        composable(Screen.Login.route) {
+            LoginScreen(
+                onLoginSuccess = { role ->
+                    val destination = if (role == Role.OPERATOR) {
+                        Screen.OperatorFlow.route
+                    } else {
+                        Screen.UserFlow.route
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.OperatorFlow.route) {
+            OperatorScreen(
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.UserFlow.route) {
+            PatientShellScreen(
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun PatientShellScreen(onLogout: () -> Unit) {
     val navController = rememberNavController()
     val navBackStackEntry = navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry.value?.destination?.route
@@ -43,13 +95,11 @@ fun NavGraph() {
             ) {
                 composable("home") {
                     HomeScreen(
-                        onNavigateToQueue = { navController.navigate("queue") }
+                        onNavigateToQueue = { navController.navigate("antrean/faskes_pertama") }
                     )
                 }
                 composable("berita") {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Halaman Berita (Dummy)")
-                    }
+                    BeritaScreen()
                 }
                 composable("kartu") {
                     KartuScreen()
@@ -72,13 +122,13 @@ fun NavGraph() {
                 }
                 composable("queue") {
                     QueueScreen(
-                        onNavigateToOperator = { navController.navigate("operator") },
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
-                composable("operator") {
-                    OperatorScreen(
-                        onNavigateBack = { navController.popBackStack() }
+                composable("antrean/faskes_pertama") {
+                    AntreanFaskesPertamaScreen(
+                        onBack = { navController.popBackStack() },
+                        onSimpan = { navController.navigate("queue") }
                     )
                 }
             }
