@@ -19,6 +19,8 @@ import com.jkn.mobile.ui.screens.HomeScreen
 import com.jkn.mobile.ui.screens.KartuScreen
 import com.jkn.mobile.ui.screens.OperatorScreen
 import com.jkn.mobile.ui.screens.ProfileScreen
+import com.jkn.mobile.ui.screens.BeritaScreen
+import com.jkn.mobile.ui.screens.AntreanFaskesPertamaScreen
 
 @Composable
 fun NavGraph() {
@@ -43,13 +45,11 @@ fun NavGraph() {
             ) {
                 composable("home") {
                     HomeScreen(
-                        onNavigateToQueue = { navController.navigate("queue") }
+                        onNavigateToQueue = { navController.navigate("antrean/faskes_pertama") }
                     )
                 }
                 composable("berita") {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Halaman Berita (Dummy)")
-                    }
+                    BeritaScreen()
                 }
                 composable("kartu") {
                     KartuScreen()
@@ -79,6 +79,12 @@ fun NavGraph() {
                 composable("operator") {
                     OperatorScreen(
                         onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                composable("antrean/faskes_pertama") {
+                    AntreanFaskesPertamaScreen(
+                        onBack = { navController.popBackStack() },
+                        onSimpan = { navController.navigate("queue") }
                     )
                 }
             }
