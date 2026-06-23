@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,7 +25,7 @@ import kotlinx.coroutines.launch
 fun OperatorScreen(
     // PERUBAHAN: Gunakan OperatorViewModel, bukan QueueViewModel
     viewModel: OperatorViewModel = viewModel(),
-    onNavigateBack: () -> Unit = {}
+    onLogout: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -161,17 +162,17 @@ fun OperatorScreen(
                 }
             }
 
-            // Tombol Back Anda
+            // Tombol Logout
             IconButton(
-                onClick = onNavigateBack,
+                onClick = onLogout,
                 modifier = Modifier
                     .padding(16.dp)
-                    .align(Alignment.TopStart)
+                    .align(Alignment.TopEnd)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
-                    contentDescription = "Kembali",
-                    tint = Color.DarkGray,
+                    imageVector = Icons.Default.ExitToApp,
+                    contentDescription = "Logout",
+                    tint = Color.Red,
                     modifier = Modifier.size(32.dp)
                 )
             }

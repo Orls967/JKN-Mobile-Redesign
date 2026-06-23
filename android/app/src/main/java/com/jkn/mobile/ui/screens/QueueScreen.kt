@@ -37,7 +37,6 @@ import com.jkn.mobile.utils.NotificationHelper
 @Composable
 fun QueueScreen(
     viewModel: QueueViewModel = viewModel(),
-    onNavigateToOperator: () -> Unit = {},
     onNavigateBack: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -69,9 +68,9 @@ fun QueueScreen(
         }
     }
 
-    // Fetch queue with ID 1 when screen first composes
+    // Fetch the first available queue when screen first composes
     LaunchedEffect(Unit) {
-        viewModel.fetchQueue(1)
+        viewModel.fetchDefaultQueue()
     }
 
     Scaffold(
@@ -120,14 +119,13 @@ fun QueueScreen(
                     uiState.errorMessage != null -> {
                         ErrorContent(
                             message = uiState.errorMessage!!,
-                            onRetry = { viewModel.fetchQueue(1) }
+                            onRetry = { viewModel.fetchDefaultQueue() }
                         )
                     }
 
                     uiState.queue != null -> {
                         QueueContent(
-                            uiState = uiState,
-                            onNavigateToOperator = onNavigateToOperator
+                            uiState = uiState
                         )
                     }
 
@@ -166,8 +164,7 @@ fun ConnectionStatusBanner(status: ConnectionStatus) {
 
 @Composable
 private fun QueueContent(
-    uiState: QueueUiState,
-    onNavigateToOperator: () -> Unit
+    uiState: QueueUiState
 ) {
     val queue = uiState.queue ?: return
     val currentNumber = queue.currentNumber
@@ -298,7 +295,6 @@ private fun QueueContent(
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-
 
     }
 }

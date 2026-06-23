@@ -21,8 +21,19 @@ public class QueueDataSeeder implements CommandLineRunner {
             defaultQueue.setCounterName("Loket Pendaftaran");
             defaultQueue.setCurrentNumber(0);
             defaultQueue.setNextNumber(1);
+            defaultQueue.setLastNumber(999);
             queueCounterRepository.save(defaultQueue);
             System.out.println("Default Queue (Loket Pendaftaran) seeded successfully.");
+        } else {
+            // Reset existing queues for demo purposes and increase limit
+            var queues = queueCounterRepository.findAll();
+            for (QueueCounter q : queues) {
+                q.setCurrentNumber(0);
+                q.setNextNumber(1);
+                q.setLastNumber(999);
+                queueCounterRepository.save(q);
+            }
+            System.out.println("Existing Queues reset and limit increased to 999.");
         }
     }
 }

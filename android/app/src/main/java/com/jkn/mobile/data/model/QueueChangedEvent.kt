@@ -4,5 +4,5 @@ data class QueueChangedEvent(
     val queueId: Long,
     val currentNumber: Int,
     val nextNumber: Int,
-    val timestamp: String
+    val timestamp: Long
 )
