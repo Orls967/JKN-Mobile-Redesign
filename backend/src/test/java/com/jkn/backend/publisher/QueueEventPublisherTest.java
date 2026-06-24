@@ -1,6 +1,7 @@
 package com.jkn.backend.publisher;
 
 import com.jkn.backend.dto.QueueChangedEvent;
+import com.jkn.backend.dto.ProximityAlertEvent; // Pastikan import DTO baru ini ada
 import com.jkn.backend.entity.QueueCounter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -45,5 +46,27 @@ class QueueEventPublisherTest {
         assertEquals(5, capturedEvent.getCurrentNumber());
         assertEquals(6, capturedEvent.getNextNumber());
         assertNotNull(capturedEvent.getTimestamp());
+    }
+
+    // TAMBAHAN TEST: Menguji apakah ProximityAlertEvent terkirim dengan benar (Sesuai Jira)
+    @Test
+    void publishQueueProximity_shouldSendProximityAlertEvent() {
+        // Arrange
+        QueueCounter queue = new QueueCounter();
+        queue.setId(2L);
+        queue.setCurrentNumber(10);
+
+        // Act
+        queueEventPublisher.publishQueueProximity(queue);
+
+        // Assert
+        ArgumentCaptor<ProximityAlertEvent> captor = ArgumentCaptor.forClass(ProximityAlertEvent.class);
+        // Memastikan topic yang ditembak benar ada tambahan "/proximity"
+        verify(messagingTemplate).convertAndSend(eq("/topic/queue/2/proximity"), captor.capture());
+
+        // Memastikan isi payload sangat ringan (hanya id dan angka saat ini)
+        ProximityAlertEvent capturedEvent = captor.getValue();
+        assertEquals(2L, capturedEvent.getQueueId());
+        assertEquals(10, capturedEvent.getCurrentNumber());
     }
 }

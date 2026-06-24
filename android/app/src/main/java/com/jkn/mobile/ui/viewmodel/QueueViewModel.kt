@@ -1,32 +1,27 @@
 package com.jkn.mobile.ui.viewmodel
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.gson.Gson
 import com.jkn.mobile.data.model.QueueChangedEvent
-import com.jkn.mobile.data.model.QueueProximityEvent
 import com.jkn.mobile.data.model.QueueResponse
-import com.jkn.mobile.data.remote.RetrofitClient
 import com.jkn.mobile.data.remote.WebSocketManager
 import com.jkn.mobile.data.repository.QueueRepository
+import com.jkn.mobile.utils.NotificationHelper
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.hildan.krossbow.stomp.subscribeText
 
 enum class ConnectionStatus {
-    CONNECTING,
-    CONNECTED,
-    RECONNECTING,
-    DISCONNECTED
+    CONNECTING, CONNECTED, RECONNECTING, DISCONNECTED
 }
 
 data class QueueUiState(
@@ -34,7 +29,7 @@ data class QueueUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val connectionStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED,
-    val myTicketNumber: Int = 75 // Centralized hardcoded ticket for testing
+    val myTicketNumber: Int = 75
 )
 
 class QueueViewModel : ViewModel() {
@@ -44,50 +39,35 @@ class QueueViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(QueueUiState())
     val uiState: StateFlow<QueueUiState> = _uiState.asStateFlow()
-    
+
     private var isWebSocketConnected = false
+
+    // Kunci anti-spam notifikasi
     private var hasReceivedProximityNotification = false
+    private var hasNotifiedCall = false
 
-    // Event bus for one-time Proximity Notification
-    private val _showProximityNotifEvent = MutableSharedFlow<Int>()
-    val showProximityNotifEvent = _showProximityNotifEvent.asSharedFlow()
+    fun fetchQueue(id: Long, context: Context) {
+        val appContext = context.applicationContext
 
-    fun fetchDefaultQueue() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-            val listResult = repository.getQueues()
-            
-            listResult.onSuccess { queues ->
-                val queue = queues.firstOrNull()
-                if (queue != null) {
-                    _uiState.value = _uiState.value.copy(
-                        queue = queue,
-                        isLoading = false
-                    )
-                    Log.d("QueueViewModel", "Queue fetched successfully: $queue")
+            val result = repository.getQueueById(id)
 
-                    // Start WebSocket connection after REST fetch succeeds
-                    connectWebSocket(queue.id)
-                } else {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "Tidak ada antrean yang tersedia"
-                    )
-                }
+            result.onSuccess { queue ->
+                _uiState.value = _uiState.value.copy(queue = queue, isLoading = false)
+                Log.d("QueueViewModel", "Queue fetched successfully: $queue")
+
+                connectWebSocket(id, appContext)
             }.onFailure { e ->
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = e.message ?: "Failed to fetch queues"
-                )
+                _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = e.message ?: "Failed to fetch queue")
                 Log.e("QueueViewModel", "Fetch error", e)
-                // Story 1.5 — Record REST fetch failure to Crashlytics
-                crashlytics.log("REST fetchQueues failed")
+                crashlytics.log("REST fetchQueue failed for id=$id")
                 crashlytics.recordException(e)
             }
         }
     }
 
-    private fun connectWebSocket(id: Long) {
+    private fun connectWebSocket(id: Long, context: Context) {
         if (isWebSocketConnected) return
         isWebSocketConnected = true
 
@@ -98,17 +78,16 @@ class QueueViewModel : ViewModel() {
             while (isActive) {
                 try {
                     _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.CONNECTING)
-                    // Story 1.5 — Log WebSocket connection attempt
                     crashlytics.log("WebSocket connecting to ${WebSocketManager.WS_URL} (attempt #${retryCount + 1})")
                     val session = WebSocketManager.stompClient.connect(WebSocketManager.WS_URL)
                     _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.CONNECTED)
-                    retryDelay = 1000L // Reset delay on successful connection
+                    retryDelay = 1000L
                     retryCount = 0
-                    // Story 1.5 — Log successful WebSocket connection
                     crashlytics.log("WebSocket connected successfully")
-                    // Launch 1: Standard QueueChangedEvent Listener
+
+                    // HANYA BUTUH 1 LISTENER: Lebih cepat, ringan, dan sesuai Jira!
                     launch {
-                        try { // <--- PERBAIKAN: Tambahan Try-Catch di sini
+                        try {
                             val subscription = session.subscribeText("/topic/queue/$id")
                             subscription.collect { payload ->
                                 try {
@@ -121,57 +100,44 @@ class QueueViewModel : ViewModel() {
                                         )
                                     )
                                     Log.d("QueueViewModel", "Received realtime update: $event")
+
+                                    val currentNum = event.currentNumber
+                                    val myNum = _uiState.value.myTicketNumber
+
+                                    // 1. Notifikasi Panggilan Utama
+                                    if (currentNum == myNum && !hasNotifiedCall) {
+                                        hasNotifiedCall = true
+                                        NotificationHelper.showQueueNotification(context, myNum)
+                                        crashlytics.log("Queue called notification triggered")
+                                    }
+
+                                    // 2. TUGAS JIRA: Hitung remaining di sisi Android
+                                    val remaining = myNum - currentNum
+                                    if (remaining in 1..3 && !hasReceivedProximityNotification) {
+                                        hasReceivedProximityNotification = true
+                                        NotificationHelper.showProximityNotification(context, remaining)
+                                        crashlytics.log("Proximity notification triggered")
+                                    }
+
                                 } catch (e: Exception) {
                                     Log.e("QueueViewModel", "Failed to parse JSON: $payload", e)
-                                    // Story 1.5 — Record subscription JSON parse failure
                                     crashlytics.log("STOMP subscription parse failure on /topic/queue/$id")
-                                    crashlytics.recordException(
-                                        Exception("STOMP Subscription Parse Failure [queue/$id]", e)
-                                    )
+                                    crashlytics.recordException(Exception("STOMP Subscription Parse Failure [queue/$id]", e))
                                 }
                             }
                         } catch (e: Exception) {
-                            Log.e("QueueViewModel", "Koneksi baca WebSocket 1 terputus", e)
+                            Log.e("QueueViewModel", "Koneksi baca WebSocket terputus", e)
                         }
                     }
 
-                    // Launch 2: Smart Proximity Listener
-                    launch {
-                        try { // <--- PERBAIKAN: Tambahan Try-Catch di sini
-                            val proxSubscription = session.subscribeText("/topic/queue/$id/proximity")
-                            proxSubscription.collect { payload ->
-                                try {
-                                    val event = Gson().fromJson(payload, QueueProximityEvent::class.java)
-                                    if (event.patientNumber == _uiState.value.myTicketNumber && !hasReceivedProximityNotification) {
-                                        hasReceivedProximityNotification = true
-                                        _showProximityNotifEvent.emit(event.remainingQueue)
-                                    }
-                                } catch (e: Exception) {
-                                    Log.e("QueueViewModel", "Failed to parse Proximity JSON: $payload", e)
-                                    // Story 1.5 — Record proximity subscription parse failure
-                                    crashlytics.log("STOMP subscription parse failure on /topic/queue/$id/proximity")
-                                    crashlytics.recordException(
-                                        Exception("STOMP Subscription Parse Failure [proximity]", e)
-                                    )
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.e("QueueViewModel", "Koneksi baca WebSocket 2 terputus", e)
-                        }
-                    }
-
-                    // Await closure manually if connection drops
                     awaitCancellation()
 
                 } catch (e: Exception) {
                     retryCount++
                     Log.e("QueueViewModel", "WebSocket disconnected", e)
                     _uiState.value = _uiState.value.copy(connectionStatus = ConnectionStatus.RECONNECTING)
-                    // Story 1.5 — Record WebSocket connection/reconnect failure
                     crashlytics.log("WebSocket reconnect attempt #$retryCount failed: ${e.message}")
-                    crashlytics.recordException(
-                        Exception("WebSocket Connection Failure (attempt #$retryCount)", e)
-                    )
+                    crashlytics.recordException(Exception("WebSocket Connection Failure (attempt #$retryCount)", e))
                     delay(retryDelay)
                     retryDelay = (retryDelay * 2).coerceAtMost(maxDelay)
                 }
@@ -182,23 +148,16 @@ class QueueViewModel : ViewModel() {
     fun nextQueue(id: Long) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
-
             val result = repository.nextQueue(id)
-
             result.onSuccess { queue ->
                 Log.d("QueueViewModel", "Queue advanced successfully: $queue")
                 _uiState.value = _uiState.value.copy(isLoading = false, queue = queue)
             }.onFailure { error ->
                 Log.e("QueueViewModel", "Error advancing queue", error)
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errorMessage = error.message ?: "Unknown error"
-                )
-                // Story 1.5 — Record REST nextQueue failure to Crashlytics
+                _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = error.message ?: "Unknown error")
                 crashlytics.log("REST nextQueue failed for id=$id")
                 crashlytics.recordException(error)
             }
         }
     }
 }
-
