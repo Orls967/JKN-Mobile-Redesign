@@ -42,6 +42,8 @@ class QueueViewModel : ViewModel() {
     private val repository = QueueRepository()
     private val crashlytics = FirebaseCrashlytics.getInstance()
 
+    private val apiService = RetrofitClient.apiService
+
     private val _uiState = MutableStateFlow(QueueUiState())
     val uiState: StateFlow<QueueUiState> = _uiState.asStateFlow()
     
@@ -51,6 +53,10 @@ class QueueViewModel : ViewModel() {
     // Event bus for one-time Proximity Notification
     private val _showProximityNotifEvent = MutableSharedFlow<Int>()
     val showProximityNotifEvent = _showProximityNotifEvent.asSharedFlow()
+
+    // State untuk menyimpan ETA
+    private val _etaMinutes = MutableStateFlow<Int?>(null)
+    val etaMinutes: StateFlow<Int?> = _etaMinutes.asStateFlow()
 
     fun fetchDefaultQueue() {
         viewModelScope.launch {
@@ -68,6 +74,8 @@ class QueueViewModel : ViewModel() {
 
                     // Start WebSocket connection after REST fetch succeeds
                     connectWebSocket(queue.id)
+
+                    fetchEta(queue.id, _uiState.value.myTicketNumber)
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -121,6 +129,9 @@ class QueueViewModel : ViewModel() {
                                         )
                                     )
                                     Log.d("QueueViewModel", "Received realtime update: $event")
+
+                                    fetchEta(id, _uiState.value.myTicketNumber)
+
                                 } catch (e: Exception) {
                                     Log.e("QueueViewModel", "Failed to parse JSON: $payload", e)
                                     // Story 1.5 — Record subscription JSON parse failure
@@ -200,5 +211,21 @@ class QueueViewModel : ViewModel() {
             }
         }
     }
+
+    fun fetchEta(queueId: Long, ticketNumber: Int) {
+        viewModelScope.launch {
+            try {
+                val response = apiService.getQueueEta(queueId, ticketNumber)
+                if (response.isSuccessful) {
+                    _etaMinutes.value = response.body()
+                }
+            } catch (e: Exception) {
+                // Biarkan kosong atau log error jika gagal, agar tidak mengganggu antrean utama
+                Log.e("QueueViewModel", "Gagal memuat ETA: ${e.message}")
+            }
+        }
+    }
+
 }
+
 
