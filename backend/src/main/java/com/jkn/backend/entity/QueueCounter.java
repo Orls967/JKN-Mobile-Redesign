@@ -34,6 +34,12 @@ public class QueueCounter {
     @Column(name = "last_number", nullable = false, columnDefinition = "integer default 50")
     private Integer lastNumber = 50;
 
+    @Column(name = "last_called_at")
+    private LocalDateTime lastCalledAt;
+
+    @Column(name = "average_service_time")
+    private Long averageServiceTime = 0L; 
+
     public QueueCounter() {
     }
 
@@ -66,4 +72,11 @@ public class QueueCounter {
 
     public Integer getLastNumber() { return lastNumber; }
     public void setLastNumber(Integer lastNumber) { this.lastNumber = lastNumber; }
+
+    // --- GETTER & SETTER UNTUK ETA ---
+    public LocalDateTime getLastCalledAt() { return lastCalledAt; }
+    public void setLastCalledAt(LocalDateTime lastCalledAt) { this.lastCalledAt = lastCalledAt; }
+
+    public Long getAverageServiceTime() { return averageServiceTime; }
+    public void setAverageServiceTime(Long averageServiceTime) { this.averageServiceTime = averageServiceTime; }
 }
