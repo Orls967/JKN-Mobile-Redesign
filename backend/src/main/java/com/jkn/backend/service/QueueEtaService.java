@@ -1,0 +1,66 @@
+package com.jkn.backend.service;
+
+import com.jkn.backend.entity.QueueCallLog;
+import com.jkn.backend.entity.QueueCounter;
+import com.jkn.backend.exception.ResourceNotFoundException;
+import com.jkn.backend.repository.QueueCallLogRepository;
+import com.jkn.backend.repository.QueueCounterRepository;
+import org.springframework.stereotype.Service;
+
+import java.time.Duration;
+import java.util.List;
+
+@Service
+public class QueueEtaService {
+
+    private final QueueCallLogRepository queueCallLogRepository;
+    private final QueueCounterRepository queueCounterRepository;
+
+    public QueueEtaService(QueueCallLogRepository queueCallLogRepository, QueueCounterRepository queueCounterRepository) {
+        this.queueCallLogRepository = queueCallLogRepository;
+        this.queueCounterRepository = queueCounterRepository;
+    }
+
+    public int calculateEtaMinutes(Long queueId, int targetNumber) {
+        QueueCounter queueCounter = queueCounterRepository.findById(queueId)
+                .orElseThrow(() -> new ResourceNotFoundException("Queue not found with id: " + queueId));
+
+        List<QueueCallLog> logs = queueCallLogRepository.findTop10ByQueueCounterIdOrderByCalledAtDesc(queueId);
+
+        long avgServiceSeconds = 180; // Default 3 minutes
+
+        if (logs.size() >= 2) {
+            long totalSeconds = 0;
+            // logs is descending, so logs.get(0) is the most recent
+            for (int i = 0; i < logs.size() - 1; i++) {
+                QueueCallLog newer = logs.get(i);
+                QueueCallLog older = logs.get(i + 1);
+                totalSeconds += Duration.between(older.getCalledAt(), newer.getCalledAt()).getSeconds();
+            }
+            avgServiceSeconds = totalSeconds / (logs.size() - 1);
+            
+            // Save the newly calculated average to the DB
+            queueCounter.setAverageServiceTime(avgServiceSeconds);
+            queueCounterRepository.save(queueCounter);
+        }
+
+        int currentNumber = queueCounter.getCurrentNumber();
+        int remaining = targetNumber - currentNumber;
+
+        if (remaining <= 0) {
+            return 0;
+        }
+
+        long etaSeconds = remaining * avgServiceSeconds;
+        int etaMinutes = (int) (etaSeconds / 60);
+
+        return etaMinutes;
+    }
+
+    public long getAverageServiceSeconds(Long queueId) {
+        QueueCounter queueCounter = queueCounterRepository.findById(queueId)
+                .orElseThrow(() -> new ResourceNotFoundException("Queue not found with id: " + queueId));
+        return queueCounter.getAverageServiceTime() != null && queueCounter.getAverageServiceTime() > 0 
+                ? queueCounter.getAverageServiceTime() : 180;
+    }
+}

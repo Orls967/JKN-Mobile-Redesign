@@ -4,6 +4,7 @@ import com.jkn.backend.dto.ApiResponse;
 import com.jkn.backend.dto.CreateQueueRequest;
 import com.jkn.backend.dto.QueueResponse;
 import com.jkn.backend.service.QueueService;
+import com.jkn.backend.service.QueueEtaService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,9 +16,11 @@ import java.util.List;
 public class QueueController {
 
     private final QueueService queueService;
+    private final QueueEtaService queueEtaService;
 
-    public QueueController(QueueService queueService) {
+    public QueueController(QueueService queueService, QueueEtaService queueEtaService) {
         this.queueService = queueService;
+        this.queueEtaService = queueEtaService;
     }
 
     @PostMapping
@@ -36,6 +39,15 @@ public class QueueController {
     public ResponseEntity<ApiResponse<QueueResponse>> getQueueById(@PathVariable Long id) {
         QueueResponse response = queueService.getQueueById(id);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/{id}/eta")
+    public ResponseEntity<com.jkn.backend.dto.EtaResponse> getQueueEta(
+            @PathVariable Long id, 
+            @RequestParam int targetNumber) {
+        int etaMinutes = queueEtaService.calculateEtaMinutes(id, targetNumber);
+        long avgSeconds = queueEtaService.getAverageServiceSeconds(id);
+        return ResponseEntity.ok(new com.jkn.backend.dto.EtaResponse(etaMinutes, avgSeconds));
     }
 
     @PutMapping("/{id}/next")

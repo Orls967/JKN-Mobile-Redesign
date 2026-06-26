@@ -11,6 +11,8 @@ import com.jkn.backend.repository.QueueCounterRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -63,17 +65,17 @@ public class QueueServiceImpl implements QueueService {
             throw new IllegalStateException("Antrean sudah habis");
         }
 
-        // Update logic: currentNumber becomes the old nextNumber, nextNumber increments by 1
+        LocalDateTime now = LocalDateTime.now();
+        queueCounter.setLastCalledAt(now);
+
         queueCounter.setCurrentNumber(queueCounter.getNextNumber());
         queueCounter.setNextNumber(queueCounter.getNextNumber() + 1);
 
         QueueCounter saved = queueCounterRepository.save(queueCounter);
 
-        // Log the call
         QueueCallLog callLog = new QueueCallLog(saved.getId(), saved.getCurrentNumber());
         queueCallLogRepository.save(callLog);
 
-        // Broadcast using the dedicated publisher
         queueEventPublisher.publishQueueChanged(saved);
 
         return mapToResponse(saved);

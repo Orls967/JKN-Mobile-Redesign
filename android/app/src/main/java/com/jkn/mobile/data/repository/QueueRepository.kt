@@ -115,4 +115,13 @@ class QueueRepository {
             Result.failure(e)
         }
     }
+
+    suspend fun getQueueEta(id: Long, targetNumber: Int): Result<com.jkn.mobile.data.model.EtaResponse> {
+        return try {
+            val response = apiService.getQueueEta(id, targetNumber)
+            Result.success(response)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }
