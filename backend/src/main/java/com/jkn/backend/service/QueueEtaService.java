@@ -5,6 +5,8 @@ import com.jkn.backend.entity.QueueCounter;
 import com.jkn.backend.exception.ResourceNotFoundException;
 import com.jkn.backend.repository.QueueCallLogRepository;
 import com.jkn.backend.repository.QueueCounterRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -12,6 +14,8 @@ import java.util.List;
 
 @Service
 public class QueueEtaService {
+
+    private static final Logger log = LoggerFactory.getLogger(QueueEtaService.class);
 
     private final QueueCallLogRepository queueCallLogRepository;
     private final QueueCounterRepository queueCounterRepository;
@@ -42,6 +46,9 @@ public class QueueEtaService {
             // Save the newly calculated average to the DB
             queueCounter.setAverageServiceTime(avgServiceSeconds);
             queueCounterRepository.save(queueCounter);
+        } else {
+            log.warn("ETA using fallback: queue_id={} log_count={} fallback_seconds=180",
+                    queueId, logs.size());
         }
 
         int currentNumber = queueCounter.getCurrentNumber();
@@ -54,6 +61,9 @@ public class QueueEtaService {
         long etaSeconds = remaining * avgServiceSeconds;
         int etaMinutes = (int) (etaSeconds / 60);
 
+        log.info("ETA calculated: queue_id={} target_number={} eta_minutes={} avg_service_seconds={}",
+                queueId, targetNumber, etaMinutes, avgServiceSeconds);
+
         return etaMinutes;
     }
 
@@ -64,3 +74,4 @@ public class QueueEtaService {
                 ? queueCounter.getAverageServiceTime() : 180;
     }
 }
+

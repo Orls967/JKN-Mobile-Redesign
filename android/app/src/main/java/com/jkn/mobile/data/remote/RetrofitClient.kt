@@ -14,6 +14,7 @@ object RetrofitClient {
     }
 
     private val okHttpClient = OkHttpClient.Builder()
+        .addInterceptor(RequestIdInterceptor()) // Story 7 — X-Request-ID correlation
         .addInterceptor(CrashlyticsInterceptor()) // Story 1.5 — Crashlytics network monitoring
         .addInterceptor(loggingInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
