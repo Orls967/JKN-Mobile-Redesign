@@ -25,7 +25,7 @@ public class QueueEtaService {
         this.queueCounterRepository = queueCounterRepository;
     }
 
-    public int calculateEtaMinutes(Long queueId, int targetNumber) {
+    public com.jkn.backend.dto.EtaResponse calculateEta(Long queueId, int targetNumber) {
         QueueCounter queueCounter = queueCounterRepository.findById(queueId)
                 .orElseThrow(() -> new ResourceNotFoundException("Queue not found with id: " + queueId));
 
@@ -46,6 +46,9 @@ public class QueueEtaService {
             // Save the newly calculated average to the DB
             queueCounter.setAverageServiceTime(avgServiceSeconds);
             queueCounterRepository.save(queueCounter);
+        } else if (queueCounter.getAverageServiceTime() != null && queueCounter.getAverageServiceTime() > 0) {
+            // Use historical average if not enough recent logs
+            avgServiceSeconds = queueCounter.getAverageServiceTime();
         } else {
             log.warn("ETA using fallback: queue_id={} log_count={} fallback_seconds=180",
                     queueId, logs.size());
@@ -53,20 +56,31 @@ public class QueueEtaService {
 
         int currentNumber = queueCounter.getCurrentNumber();
         int remaining = targetNumber - currentNumber;
+        int etaMinutes = 0;
 
-        if (remaining <= 0) {
-            return 0;
+        if (remaining > 0) {
+            long etaSeconds = remaining * avgServiceSeconds;
+            etaMinutes = (int) (etaSeconds / 60);
         }
-
-        long etaSeconds = remaining * avgServiceSeconds;
-        int etaMinutes = (int) (etaSeconds / 60);
 
         log.info("ETA calculated: queue_id={} target_number={} eta_minutes={} avg_service_seconds={}",
                 queueId, targetNumber, etaMinutes, avgServiceSeconds);
 
-        return etaMinutes;
+        return new com.jkn.backend.dto.EtaResponse(queueId, targetNumber, etaMinutes, avgServiceSeconds);
     }
 
+    /**
+     * @deprecated Use {@link #calculateEta(Long, int)} instead to avoid N+1 query pattern.
+     */
+    @Deprecated
+    public int calculateEtaMinutes(Long queueId, int targetNumber) {
+        return calculateEta(queueId, targetNumber).getEtaMinutes();
+    }
+
+    /**
+     * @deprecated Use {@link #calculateEta(Long, int)} instead to avoid N+1 query pattern.
+     */
+    @Deprecated
     public long getAverageServiceSeconds(Long queueId) {
         QueueCounter queueCounter = queueCounterRepository.findById(queueId)
                 .orElseThrow(() -> new ResourceNotFoundException("Queue not found with id: " + queueId));

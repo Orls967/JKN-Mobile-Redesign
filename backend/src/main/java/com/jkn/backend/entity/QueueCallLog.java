@@ -6,7 +6,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "queue_call_log")
+@Table(name = "queue_call_log", indexes = {
+    @Index(name = "idx_call_log_counter_called_desc", columnList = "queue_counter_id, called_at DESC")
+})
 public class QueueCallLog {
 
     @Id

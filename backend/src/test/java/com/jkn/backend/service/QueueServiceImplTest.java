@@ -23,6 +23,7 @@ class QueueServiceImplTest {
     private QueueCounterRepository queueCounterRepository;
     private QueueCallLogRepository queueCallLogRepository;
     private QueueEventPublisher queueEventPublisher;
+    private QueueMetricsService metricsService;
     private QueueServiceImpl queueService;
 
     @BeforeEach
@@ -30,7 +31,11 @@ class QueueServiceImplTest {
         queueCounterRepository = Mockito.mock(QueueCounterRepository.class);
         queueCallLogRepository = Mockito.mock(QueueCallLogRepository.class);
         queueEventPublisher = Mockito.mock(QueueEventPublisher.class);
-        queueService = new QueueServiceImpl(queueCounterRepository, queueCallLogRepository, queueEventPublisher);
+        
+        io.micrometer.core.instrument.simple.SimpleMeterRegistry registry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+        metricsService = new QueueMetricsService(registry);
+        
+        queueService = new QueueServiceImpl(queueCounterRepository, queueCallLogRepository, queueEventPublisher, metricsService);
     }
 
     @Test
