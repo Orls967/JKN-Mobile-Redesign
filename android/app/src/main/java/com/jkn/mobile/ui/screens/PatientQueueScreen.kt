@@ -36,6 +36,53 @@ fun PatientQueueScreen(
         mutableStateOf(if (uiState.myNumber > 0) uiState.myNumber.toString() else "") 
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var showPermissionRationale by remember { mutableStateOf(false) }
+
+    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (!isGranted) {
+            // Handle permission denied logic or show a rationale next time
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.startObserving(context)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val activity = context as? android.app.Activity
+            if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
+                != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                if (activity != null && androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(activity, android.Manifest.permission.POST_NOTIFICATIONS)) {
+                    showPermissionRationale = true
+                } else {
+                    permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        }
+    }
+
+    if (showPermissionRationale) {
+        AlertDialog(
+            onDismissRequest = { showPermissionRationale = false },
+            title = { Text("Izin Notifikasi Dibutuhkan") },
+            text = { Text("Aplikasi membutuhkan izin notifikasi untuk memberi tahu Anda saat antrean sudah dekat.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionRationale = false
+                    permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }) {
+                    Text("Izinkan")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionRationale = false }) {
+                    Text("Tolak")
+                }
+            }
+        )
+    }
+
     Scaffold(
         containerColor = Color(0xFFF0F0F0) // Background serasi dengan layar operator
     ) { paddingValues ->

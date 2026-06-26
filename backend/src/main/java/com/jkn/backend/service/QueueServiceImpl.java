@@ -77,7 +77,6 @@ public class QueueServiceImpl implements QueueService {
         queueCallLogRepository.save(callLog);
 
         queueEventPublisher.publishQueueChanged(saved);
-        queueEventPublisher.publishQueueProximity(saved);
 
         return mapToResponse(saved);
     }
