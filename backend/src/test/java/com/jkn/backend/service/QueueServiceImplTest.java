@@ -59,10 +59,9 @@ class QueueServiceImplTest {
         verify(queueCallLogRepository).save(logCaptor.capture());
         assertEquals(queueId, logCaptor.getValue().getQueueCounterId());
         assertEquals(6, logCaptor.getValue().getTicketNumber());
-
-        // 3. Publisher should be called
+        verify(queueCounterRepository).save(any(QueueCounter.class));
+        verify(queueCallLogRepository).save(any(QueueCallLog.class));
         verify(queueEventPublisher).publishQueueChanged(any(QueueCounter.class));
-        verify(queueEventPublisher).publishQueueProximity(any(QueueCounter.class));
     }
 
     @Test

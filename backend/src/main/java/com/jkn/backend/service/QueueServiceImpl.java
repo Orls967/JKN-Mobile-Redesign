@@ -66,12 +66,6 @@ public class QueueServiceImpl implements QueueService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        if (queueCounter.getLastCalledAt() != null) {
-            long timeTaken = Duration.between(queueCounter.getLastCalledAt(), now).toMillis();
-            long currentAvg = queueCounter.getAverageServiceTime() != null ? queueCounter.getAverageServiceTime() : 0L;
-            long newAvg = (currentAvg == 0) ? timeTaken : (currentAvg + timeTaken) / 2;
-            queueCounter.setAverageServiceTime(newAvg);
-        }
         queueCounter.setLastCalledAt(now);
 
         queueCounter.setCurrentNumber(queueCounter.getNextNumber());
@@ -83,7 +77,6 @@ public class QueueServiceImpl implements QueueService {
         queueCallLogRepository.save(callLog);
 
         queueEventPublisher.publishQueueChanged(saved);
-        queueEventPublisher.publishQueueProximity(saved);
 
         return mapToResponse(saved);
     }
