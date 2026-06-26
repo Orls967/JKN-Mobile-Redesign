@@ -112,6 +112,40 @@ fun PatientQueueScreen(
                         unfocusedContainerColor = Color.White
                     )
                 )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Estimasi Waktu Tunggu (ETA)
+                if (uiState.myNumber > 0) {
+                    Card(
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text("Estimasi Waktu Tunggu", fontSize = 14.sp, color = Color.Gray)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val etaText = if (uiState.etaMinutes == -1) {
+                                "Menghitung..."
+                            } else if (uiState.etaMinutes == 0) {
+                                "Antrean Anda sudah dekat / terlewat"
+                            } else {
+                                "~ ${uiState.etaMinutes} Menit"
+                            }
+                            Text(
+                                text = etaText,
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (uiState.etaMinutes == 0) Color(0xFF4CAF50) else Color.DarkGray
+                            )
+                        }
+                    }
+                }
             }
 
             // Tombol Back

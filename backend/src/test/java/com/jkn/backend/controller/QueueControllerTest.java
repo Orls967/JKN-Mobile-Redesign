@@ -8,6 +8,9 @@ import org.mockito.Mockito;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+import com.jkn.backend.service.QueueEtaService;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -17,12 +20,19 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class QueueControllerTest {
 
     private MockMvc mockMvc;
+
+    @Mock
     private QueueService queueService;
+
+    @Mock
+    private QueueEtaService queueEtaService;
+
+    private QueueController queueController;
 
     @BeforeEach
     void setUp() {
-        queueService = Mockito.mock(QueueService.class);
-        QueueController queueController = new QueueController(queueService);
+        MockitoAnnotations.openMocks(this);
+        queueController = new QueueController(queueService, queueEtaService);
         mockMvc = MockMvcBuilders.standaloneSetup(queueController).build();
     }
 
