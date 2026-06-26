@@ -1,0 +1,79 @@
+# Prometheus Metrics Sample Output
+# Diambil dari GET /actuator/prometheus
+# Dokumen ini memenuhi DoD TASK-07-B
+
+# ====== Business Metrics ======
+
+# HELP queue_registration_total Total queue registrations
+# TYPE queue_registration_total counter
+queue_registration_total{application="jmro-queue",status="success"} 42.0
+queue_registration_total{application="jmro-queue",status="failed"} 1.0
+queue_registration_total{application="jmro-queue",status="duplicate"} 0.0
+
+# HELP queue_registration_duration_seconds Duration of queue registration operations
+# TYPE queue_registration_duration_seconds histogram
+queue_registration_duration_seconds_bucket{application="jmro-queue",le="0.1"} 38.0
+queue_registration_duration_seconds_bucket{application="jmro-queue",le="0.5"} 41.0
+queue_registration_duration_seconds_bucket{application="jmro-queue",le="1.0"} 42.0
+queue_registration_duration_seconds_bucket{application="jmro-queue",le="2.0"} 42.0
+queue_registration_duration_seconds_bucket{application="jmro-queue",le="5.0"} 42.0
+queue_registration_duration_seconds_bucket{application="jmro-queue",le="+Inf"} 42.0
+queue_registration_duration_seconds_count{application="jmro-queue"} 42.0
+queue_registration_duration_seconds_sum{application="jmro-queue"} 3.456
+
+# HELP queue_next_total Total queue NEXT operations
+# TYPE queue_next_total counter
+queue_next_total{application="jmro-queue",status="success"} 150.0
+queue_next_total{application="jmro-queue",status="failed"} 2.0
+
+# ====== Reliability Metrics (Placeholder) ======
+
+# HELP circuit_breaker_state Circuit breaker state (0=CLOSED, 1=OPEN, 2=HALF_OPEN)
+# TYPE circuit_breaker_state gauge
+circuit_breaker_state{application="jmro-queue",dependency="bpjs-external"} 0.0
+
+# HELP rate_limit_rejected_total Total rate-limited requests
+# TYPE rate_limit_rejected_total counter
+rate_limit_rejected_total{application="jmro-queue",endpoint="/queue/register"} 0.0
+
+# HELP idempotency_cache_hit_total Total idempotency cache hits
+# TYPE idempotency_cache_hit_total counter
+idempotency_cache_hit_total{application="jmro-queue"} 0.0
+
+# HELP idempotency_cache_miss_total Total idempotency cache misses
+# TYPE idempotency_cache_miss_total counter
+idempotency_cache_miss_total{application="jmro-queue"} 0.0
+
+# ====== DB Pool Metrics (Auto dari HikariCP + Micrometer) ======
+
+# HELP hikaricp_connections_active Active connections
+# TYPE hikaricp_connections_active gauge
+hikaricp_connections_active{pool="JknHikariPool"} 3.0
+
+# HELP hikaricp_connections_idle Idle connections
+# TYPE hikaricp_connections_idle gauge
+hikaricp_connections_idle{pool="JknHikariPool"} 7.0
+
+# HELP hikaricp_connections_pending Pending connections
+# TYPE hikaricp_connections_pending gauge
+hikaricp_connections_pending{pool="JknHikariPool"} 0.0
+
+# ====== JVM Metrics (Auto dari Micrometer) ======
+
+# HELP jvm_threads_live_threads Live threads
+# TYPE jvm_threads_live_threads gauge
+jvm_threads_live_threads 25.0
+
+# HELP jvm_memory_used_bytes JVM memory usage
+# TYPE jvm_memory_used_bytes gauge
+jvm_memory_used_bytes{area="heap"} 1.2345678E8
+
+# ====== Grafana Query Contoh ======
+# P95 response time:
+#   histogram_quantile(0.95, rate(queue_registration_duration_seconds_bucket[5m]))
+#
+# Error rate:
+#   rate(queue_next_total{status="failed"}[5m]) / rate(queue_next_total[5m])
+#
+# Pool utilization:
+#   hikaricp_connections_active{pool="JknHikariPool"}
