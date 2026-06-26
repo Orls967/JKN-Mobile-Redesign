@@ -43,7 +43,6 @@ class QueueViewModel : ViewModel() {
     private var isWebSocketConnected = false
 
     // Kunci anti-spam notifikasi
-    private var hasReceivedProximityNotification = false
     private var hasNotifiedCall = false
 
     fun fetchQueue(id: Long, context: Context) {
@@ -109,14 +108,6 @@ class QueueViewModel : ViewModel() {
                                         hasNotifiedCall = true
                                         NotificationHelper.showQueueNotification(context, myNum)
                                         crashlytics.log("Queue called notification triggered")
-                                    }
-
-                                    // 2. TUGAS JIRA: Hitung remaining di sisi Android
-                                    val remaining = myNum - currentNum
-                                    if (remaining in 1..3 && !hasReceivedProximityNotification) {
-                                        hasReceivedProximityNotification = true
-                                        NotificationHelper.showProximityNotification(context, remaining)
-                                        crashlytics.log("Proximity notification triggered")
                                     }
 
                                 } catch (e: Exception) {

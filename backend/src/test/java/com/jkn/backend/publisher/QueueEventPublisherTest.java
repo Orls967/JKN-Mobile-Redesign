@@ -37,7 +37,7 @@ class QueueEventPublisherTest {
         // Act
         queueEventPublisher.publishQueueChanged(queue);
 
-        // Assert
+        // Assert main topic
         ArgumentCaptor<QueueChangedEvent> captor = ArgumentCaptor.forClass(QueueChangedEvent.class);
         verify(messagingTemplate).convertAndSend(eq("/topic/queue/1"), captor.capture());
 
@@ -46,27 +46,13 @@ class QueueEventPublisherTest {
         assertEquals(5, capturedEvent.getCurrentNumber());
         assertEquals(6, capturedEvent.getNextNumber());
         assertNotNull(capturedEvent.getTimestamp());
-    }
 
-    // TAMBAHAN TEST: Menguji apakah ProximityAlertEvent terkirim dengan benar (Sesuai Jira)
-    @Test
-    void publishQueueProximity_shouldSendProximityAlertEvent() {
-        // Arrange
-        QueueCounter queue = new QueueCounter();
-        queue.setId(2L);
-        queue.setCurrentNumber(10);
+        // Assert proximity topic
+        ArgumentCaptor<ProximityAlertEvent> proxCaptor = ArgumentCaptor.forClass(ProximityAlertEvent.class);
+        verify(messagingTemplate).convertAndSend(eq("/topic/queue/1/proximity"), proxCaptor.capture());
 
-        // Act
-        queueEventPublisher.publishQueueProximity(queue);
-
-        // Assert
-        ArgumentCaptor<ProximityAlertEvent> captor = ArgumentCaptor.forClass(ProximityAlertEvent.class);
-        // Memastikan topic yang ditembak benar ada tambahan "/proximity"
-        verify(messagingTemplate).convertAndSend(eq("/topic/queue/2/proximity"), captor.capture());
-
-        // Memastikan isi payload sangat ringan (hanya id dan angka saat ini)
-        ProximityAlertEvent capturedEvent = captor.getValue();
-        assertEquals(2L, capturedEvent.getQueueId());
-        assertEquals(10, capturedEvent.getCurrentNumber());
+        ProximityAlertEvent proxEvent = proxCaptor.getValue();
+        assertEquals(1L, proxEvent.getQueueId());
+        assertEquals(5, proxEvent.getCurrentNumber());
     }
 }

@@ -24,11 +24,8 @@ public class QueueEventPublisher {
         );
 
         messagingTemplate.convertAndSend("/topic/queue/" + queueCounter.getId(), event);
-    }
 
-    public void publishQueueProximity(QueueCounter queueCounter) {
-        // SESUAI JIRA: Tidak ada lagi looping sisa antrean di backend.
-        // Cukup kirim queueId dan currentNumber yang sangat ringan.
+        // SESUAI JIRA: Broadcast proximity dikirim sebagai event tambahan di sini
         ProximityAlertEvent proxEvent = new ProximityAlertEvent(
                 queueCounter.getId(),
                 queueCounter.getCurrentNumber()

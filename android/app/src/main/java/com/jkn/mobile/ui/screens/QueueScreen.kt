@@ -41,25 +41,6 @@ fun QueueScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Initialize Notification Channel
-    LaunchedEffect(Unit) {
-        NotificationHelper.createNotificationChannel(context)
-    }
-
-    // Request POST_NOTIFICATIONS Permission on Android 13+
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { /* Do nothing, handled implicitly */ }
-
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS)
-                != PackageManager.PERMISSION_GRANTED) {
-                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-    }
-
     // PERBAIKAN: Fetch queue dengan meneruskan context ke ViewModel
     LaunchedEffect(Unit) {
         viewModel.fetchQueue(1, context)
