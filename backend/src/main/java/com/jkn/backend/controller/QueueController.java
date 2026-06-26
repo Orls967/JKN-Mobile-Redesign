@@ -42,12 +42,16 @@ public class QueueController {
     }
 
     @GetMapping("/{id}/eta")
-    public ResponseEntity<com.jkn.backend.dto.EtaResponse> getQueueEta(
+    public ResponseEntity<ApiResponse<com.jkn.backend.dto.EtaResponse>> getQueueEta(
             @PathVariable Long id, 
             @RequestParam int targetNumber) {
+        if (targetNumber < 0) {
+            throw new IllegalArgumentException("Target number tidak boleh negatif");
+        }
         int etaMinutes = queueEtaService.calculateEtaMinutes(id, targetNumber);
         long avgSeconds = queueEtaService.getAverageServiceSeconds(id);
-        return ResponseEntity.ok(new com.jkn.backend.dto.EtaResponse(etaMinutes, avgSeconds));
+        com.jkn.backend.dto.EtaResponse etaResponse = new com.jkn.backend.dto.EtaResponse(id, targetNumber, etaMinutes, avgSeconds);
+        return ResponseEntity.ok(ApiResponse.success(etaResponse));
     }
 
     @PutMapping("/{id}/next")

@@ -47,10 +47,6 @@ class QueueViewModel : ViewModel() {
     // Kunci anti-spam notifikasi
     private var hasNotifiedCall = false
 
-    // State untuk menyimpan ETA
-    private val _etaMinutes = MutableStateFlow<Int?>(null)
-    val etaMinutes: StateFlow<Int?> = _etaMinutes.asStateFlow()
-
     fun fetchQueue(id: Long, context: Context) {
         val appContext = context.applicationContext
         viewModelScope.launch {
@@ -62,7 +58,6 @@ class QueueViewModel : ViewModel() {
                 Log.d("QueueViewModel", "Queue fetched successfully: $queue")
 
                 connectWebSocket(id, appContext)
-                fetchEta(id, _uiState.value.myTicketNumber)
             }.onFailure { e ->
                 _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = e.message ?: "Failed to fetch queue")
                 Log.e("QueueViewModel", "Fetch error", e)
@@ -109,8 +104,6 @@ class QueueViewModel : ViewModel() {
                                     val currentNum = event.currentNumber
                                     val myNum = _uiState.value.myTicketNumber
 
-                                    fetchEta(id, myNum)
-
                                     // 1. Notifikasi Panggilan Utama
                                     if (currentNum == myNum && !hasNotifiedCall) {
                                         hasNotifiedCall = true
@@ -156,19 +149,6 @@ class QueueViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = error.message ?: "Unknown error")
                 crashlytics.log("REST nextQueue failed for id=$id")
                 crashlytics.recordException(error)
-            }
-        }
-    }
-    fun fetchEta(queueId: Long, ticketNumber: Int) {
-        viewModelScope.launch {
-            try {
-                val response = apiService.getQueueEta(queueId, ticketNumber)
-                if (response.isSuccessful) {
-                    _etaMinutes.value = response.body()
-                }
-            } catch (e: Exception) {
-                // Biarkan kosong atau log error jika gagal, agar tidak mengganggu antrean utama
-                Log.e("QueueViewModel", "Gagal memuat ETA: ${e.message}")
             }
         }
     }

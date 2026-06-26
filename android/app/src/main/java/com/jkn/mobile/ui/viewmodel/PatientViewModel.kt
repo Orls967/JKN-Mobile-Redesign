@@ -10,10 +10,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.launch
-
-import android.content.Context
-import com.jkn.mobile.utils.NotificationHelper
+import kotlinx.coroutines.FlowPreview
 
 data class PatientUiState(
     val myNumber: Int = 0,
@@ -24,6 +25,7 @@ data class PatientUiState(
     val etaMinutes: Int = -1 // -1 means unknown/loading
 )
 
+@OptIn(FlowPreview::class)
 class PatientViewModel : ViewModel() {
     private val webSocketClient = QueueWebSocketClient()
     private val queueRepository = QueueRepository()
@@ -31,12 +33,26 @@ class PatientViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(PatientUiState())
     val uiState: StateFlow<PatientUiState> = _uiState.asStateFlow()
 
+    private val _etaRequestFlow = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
+
     init {
         // Observe connection status updates
         viewModelScope.launch {
             webSocketClient.connectionStatus.collect { status ->
                 _uiState.update { it.copy(connectionStatus = status) }
             }
+        }
+
+        // Observe and debounce ETA requests
+        viewModelScope.launch {
+            _etaRequestFlow
+                .debounce(2000L)
+                .collect {
+                    fetchEta()
+                }
         }
     }
 
@@ -53,7 +69,7 @@ class PatientViewModel : ViewModel() {
                 val remaining = myNum - currentNum
 
                 if (myNum > 0) {
-                    fetchEta()
+                    _etaRequestFlow.tryEmit(Unit)
                 }
 
                 if (remaining in 1..3 && !_uiState.value.notificationSent) {
@@ -81,7 +97,7 @@ class PatientViewModel : ViewModel() {
         val number = numberStr.toIntOrNull() ?: 0
         _uiState.update { it.copy(myNumber = number, notificationSent = false) }
         if (number > 0) {
-            fetchEta()
+            _etaRequestFlow.tryEmit(Unit)
         }
     }
 }

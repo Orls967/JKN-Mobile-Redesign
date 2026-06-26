@@ -16,18 +16,6 @@ interface ApiService {
     @GET("api/queues/{id}")
     suspend fun getQueueById(@Path("id") id: Long): ApiResponse<QueueResponse>
 
-    @GET("api/queues/{id}/eta")
-    suspend fun getQueueEta(
-        @Path("id") id: Long,
-        @Query("ticketNumber") ticketNumber: Int
-    ): Response<Int>
-
     @PUT("api/queues/{id}/next")
     suspend fun nextQueue(@Path("id") id: Long): ApiResponse<QueueResponse>
-
-    @GET("api/queues/{id}/eta")
-    suspend fun getQueueEta(
-        @Path("id") id: Long,
-        @retrofit2.http.Query("targetNumber") targetNumber: Int
-    ): com.jkn.mobile.data.model.EtaResponse
 }

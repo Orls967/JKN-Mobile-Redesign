@@ -41,8 +41,6 @@ fun QueueScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    val etaMinutes by viewModel.etaMinutes.collectAsStateWithLifecycle()
-
     // PERBAIKAN: Fetch queue dengan meneruskan context ke ViewModel
     LaunchedEffect(Unit) {
         viewModel.fetchQueue(1, context)
@@ -101,8 +99,7 @@ fun QueueScreen(
 
                     uiState.queue != null -> {
                         QueueContent(
-                            uiState = uiState,
-                            etaMinutes = etaMinutes
+                            uiState = uiState
                         )
                     }
 
@@ -141,8 +138,7 @@ fun ConnectionStatusBanner(status: ConnectionStatus) {
 
 @Composable
 private fun QueueContent(
-    uiState: QueueUiState,
-    etaMinutes: Int? = null
+    uiState: QueueUiState
 ) {
     val queue = uiState.queue ?: return
     val currentNumber = queue.currentNumber
@@ -196,15 +192,6 @@ private fun QueueContent(
                         Text(text = "Status: Sudah Terlewati", color = Color.Red, fontWeight = FontWeight.Bold)
                         Text(text = "Nomor antrean Anda telah lewat.")
                     }
-                }
-                if (etaMinutes != null && etaMinutes > 0 && currentNumber < myTicketNumber) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "⏳ Estimasi Waktu Tunggu: ~$etaMinutes Menit",
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
                 }
             }
         }
