@@ -37,6 +37,8 @@ class QueueViewModel : ViewModel() {
     private val repository = QueueRepository()
     private val crashlytics = FirebaseCrashlytics.getInstance()
 
+    private val apiService = RetrofitClient.apiService
+
     private val _uiState = MutableStateFlow(QueueUiState())
     val uiState: StateFlow<QueueUiState> = _uiState.asStateFlow()
 
@@ -47,7 +49,6 @@ class QueueViewModel : ViewModel() {
 
     fun fetchQueue(id: Long, context: Context) {
         val appContext = context.applicationContext
-
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
             val result = repository.getQueueById(id)

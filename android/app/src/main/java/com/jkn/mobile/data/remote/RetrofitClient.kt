@@ -28,4 +28,5 @@ object RetrofitClient {
         .build()
 
     val apiService: ApiService = retrofit.create(ApiService::class.java)
+    val queueApiService: QueueApiService = retrofit.create(QueueApiService::class.java)
 }

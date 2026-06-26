@@ -116,10 +116,16 @@ class QueueRepository {
         }
     }
 
+    private val queueApiService = RetrofitClient.queueApiService
+
     suspend fun getQueueEta(id: Long, targetNumber: Int): Result<com.jkn.mobile.data.model.EtaResponse> {
         return try {
-            val response = apiService.getQueueEta(id, targetNumber)
-            Result.success(response)
+            val response = queueApiService.getEta(id, targetNumber)
+            if (response.success && response.data != null) {
+                Result.success(response.data)
+            } else {
+                Result.failure(Exception(response.message))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

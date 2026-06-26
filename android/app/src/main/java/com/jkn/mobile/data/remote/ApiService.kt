@@ -2,9 +2,11 @@ package com.jkn.mobile.data.remote
 
 import com.jkn.mobile.data.model.ApiResponse
 import com.jkn.mobile.data.model.QueueResponse
+import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.PUT
 import retrofit2.http.Path
+import retrofit2.http.Query
 
 interface ApiService {
 
@@ -16,10 +18,4 @@ interface ApiService {
 
     @PUT("api/queues/{id}/next")
     suspend fun nextQueue(@Path("id") id: Long): ApiResponse<QueueResponse>
-
-    @GET("api/queues/{id}/eta")
-    suspend fun getQueueEta(
-        @Path("id") id: Long,
-        @retrofit2.http.Query("targetNumber") targetNumber: Int
-    ): com.jkn.mobile.data.model.EtaResponse
 }

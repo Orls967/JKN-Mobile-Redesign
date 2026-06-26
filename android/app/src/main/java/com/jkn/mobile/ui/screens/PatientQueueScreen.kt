@@ -175,18 +175,14 @@ fun PatientQueueScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center
                         ) {
-                            Text("Estimasi Waktu Tunggu", fontSize = 14.sp, color = Color.Gray)
-                            Spacer(modifier = Modifier.height(4.dp))
                             val etaText = if (uiState.etaMinutes == -1) {
                                 "Menghitung..."
-                            } else if (uiState.etaMinutes == 0) {
-                                "Antrean Anda sudah dekat / terlewat"
                             } else {
-                                "~ ${uiState.etaMinutes} Menit"
+                                "Estimasi waktu tunggu: ~${uiState.etaMinutes} menit"
                             }
                             Text(
                                 text = etaText,
-                                fontSize = 24.sp,
+                                fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (uiState.etaMinutes == 0) Color(0xFF4CAF50) else Color.DarkGray
                             )
