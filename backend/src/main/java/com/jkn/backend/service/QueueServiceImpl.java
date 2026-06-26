@@ -75,7 +75,6 @@ public class QueueServiceImpl implements QueueService {
 
         // Broadcast using the dedicated publisher
         queueEventPublisher.publishQueueChanged(saved);
-        queueEventPublisher.publishQueueProximity(saved);
 
         return mapToResponse(saved);
     }

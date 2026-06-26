@@ -9,7 +9,7 @@ import androidx.core.app.NotificationCompat
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 
 object NotificationHelper {
-    private const val CHANNEL_ID = "jkn_queue_channel"
+    private const val CHANNEL_ID = "queue_alerts"
     private const val CHANNEL_NAME = "JKN Antrean"
 
     fun createNotificationChannel(context: Context) {
@@ -59,8 +59,8 @@ object NotificationHelper {
 
             val builder = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
-                .setContentTitle("Antrean Anda Hampir Dipanggil")
-                .setContentText("Nomor antrean Anda tinggal $remainingQueue nomor lagi. Silakan bersiap menuju loket.")
+                .setContentTitle("Antrean Anda Segera Tiba")
+                .setContentText("Tersisa $remainingQueue nomor lagi")
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setSound(defaultSoundUri)
                 .setAutoCancel(true)

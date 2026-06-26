@@ -1,6 +1,7 @@
 package com.jkn.backend.publisher;
 
 import com.jkn.backend.dto.QueueChangedEvent;
+import com.jkn.backend.dto.ProximityAlertEvent; // Pastikan import DTO baru ini ada
 import com.jkn.backend.entity.QueueCounter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,7 @@ class QueueEventPublisherTest {
         // Act
         queueEventPublisher.publishQueueChanged(queue);
 
-        // Assert
+        // Assert main topic
         ArgumentCaptor<QueueChangedEvent> captor = ArgumentCaptor.forClass(QueueChangedEvent.class);
         verify(messagingTemplate).convertAndSend(eq("/topic/queue/1"), captor.capture());
 
@@ -45,5 +46,13 @@ class QueueEventPublisherTest {
         assertEquals(5, capturedEvent.getCurrentNumber());
         assertEquals(6, capturedEvent.getNextNumber());
         assertNotNull(capturedEvent.getTimestamp());
+
+        // Assert proximity topic
+        ArgumentCaptor<ProximityAlertEvent> proxCaptor = ArgumentCaptor.forClass(ProximityAlertEvent.class);
+        verify(messagingTemplate).convertAndSend(eq("/topic/queue/1/proximity"), proxCaptor.capture());
+
+        ProximityAlertEvent proxEvent = proxCaptor.getValue();
+        assertEquals(1L, proxEvent.getQueueId());
+        assertEquals(5, proxEvent.getCurrentNumber());
     }
 }

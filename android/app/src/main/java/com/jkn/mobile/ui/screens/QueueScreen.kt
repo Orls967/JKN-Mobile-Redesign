@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,35 +41,9 @@ fun QueueScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Initialize Notification Channel
+    // PERBAIKAN: Fetch queue dengan meneruskan context ke ViewModel
     LaunchedEffect(Unit) {
-        NotificationHelper.createNotificationChannel(context)
-    }
-
-    // Request POST_NOTIFICATIONS Permission on Android 13+
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { /* Do nothing, handled implicitly */ }
-
-    LaunchedEffect(Unit) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) 
-                != PackageManager.PERMISSION_GRANTED) {
-                permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
-    }
-
-    // Listen for Backend-driven Proximity Notifications
-    LaunchedEffect(Unit) {
-        viewModel.showProximityNotifEvent.collect { remainingQueue ->
-            NotificationHelper.showProximityNotification(context, remainingQueue)
-        }
-    }
-
-    // Fetch the first available queue when screen first composes
-    LaunchedEffect(Unit) {
-        viewModel.fetchDefaultQueue()
+        viewModel.fetchQueue(1, context)
     }
 
     Scaffold(
@@ -119,7 +92,8 @@ fun QueueScreen(
                     uiState.errorMessage != null -> {
                         ErrorContent(
                             message = uiState.errorMessage!!,
-                            onRetry = { viewModel.fetchDefaultQueue() }
+                            // PERBAIKAN: Meneruskan context saat retry
+                            onRetry = { viewModel.fetchQueue(1, context) }
                         )
                     }
 
@@ -169,17 +143,9 @@ private fun QueueContent(
     val queue = uiState.queue ?: return
     val currentNumber = queue.currentNumber
     val myTicketNumber = uiState.myTicketNumber
-    val context = LocalContext.current
 
-    // Anti-Spam Notification Logic (For Exact Call)
-    var hasNotifiedCall by rememberSaveable(myTicketNumber) { mutableStateOf(false) }
-
-    LaunchedEffect(currentNumber) {
-        if (currentNumber == myTicketNumber && !hasNotifiedCall) {
-            NotificationHelper.showQueueNotification(context, myTicketNumber)
-            hasNotifiedCall = true
-        }
-    }
+    // PERBAIKAN: Logika notifikasi di UI telah dihapus karena sudah dipindahkan
+    // ke QueueViewModel agar aman dan hidup terus di background.
 
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -193,7 +159,7 @@ private fun QueueContent(
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
-        
+
         // Live Queue Indicator
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -202,7 +168,7 @@ private fun QueueContent(
             Column(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(text = "Nomor Antrean Anda: $myTicketNumber", fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 when {
                     currentNumber < myTicketNumber -> {
                         val remaining = myTicketNumber - currentNumber
@@ -295,7 +261,6 @@ private fun QueueContent(
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-
     }
 }
 
