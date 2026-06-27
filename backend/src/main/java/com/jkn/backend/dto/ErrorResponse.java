@@ -22,6 +22,9 @@ public class ErrorResponse {
     @JsonProperty("retry_after")
     private Integer retryAfter;
     
+    @JsonProperty("degraded_mode")
+    private Boolean degradedMode;
+    
     @JsonProperty("request_id")
     private String requestId;
     
@@ -54,6 +57,9 @@ public class ErrorResponse {
 
     public Integer getRetryAfter() { return retryAfter; }
     public void setRetryAfter(Integer retryAfter) { this.retryAfter = retryAfter; }
+
+    public Boolean getDegradedMode() { return degradedMode; }
+    public void setDegradedMode(Boolean degradedMode) { this.degradedMode = degradedMode; }
 
     public String getRequestId() { return requestId; }
     public void setRequestId(String requestId) { this.requestId = requestId; }

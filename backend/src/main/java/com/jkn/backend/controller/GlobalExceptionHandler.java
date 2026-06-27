@@ -111,6 +111,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 
+    @ExceptionHandler(io.github.resilience4j.circuitbreaker.CallNotPermittedException.class)
+    public ResponseEntity<ErrorResponse> handleCircuitBreakerOpen(io.github.resilience4j.circuitbreaker.CallNotPermittedException ex, HttpServletRequest request) {
+        log.warn("Circuit Breaker OPEN for dependency: {}", ex.getCausingCircuitBreakerName());
+        ErrorResponse response = new ErrorResponse(
+                "SERVICE_TEMPORARILY_UNAVAILABLE",
+                "Layanan sedang mengalami gangguan sementara. Silakan coba beberapa saat lagi.",
+                true,
+                30,
+                getRequestId(request)
+        );
+        response.setDegradedMode(true);
+        
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .header("Retry-After", "30")
+                .header("X-Degraded-Mode", "true")
+                .body(response);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleAllOtherExceptions(Exception ex, HttpServletRequest request) {
         log.error("Unhandled exception: ", ex);
