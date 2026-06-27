@@ -39,66 +39,78 @@ public class RateLimiterFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Hanya limit POST /api/queues
         String path = request.getRequestURI();
-        return !("POST".equalsIgnoreCase(request.getMethod()) && "/api/queues".equals(path));
+        String method = request.getMethod();
+        // Hanya limit POST /api/queues dan GET /api/queues/status
+        boolean isPostQueue = "POST".equalsIgnoreCase(method) && "/api/queues".equals(path);
+        boolean isGetStatus = "GET".equalsIgnoreCase(method) && path.startsWith("/api/queues/status");
+        return !(isPostQueue || isGetStatus);
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        String path = request.getRequestURI();
+        String method = request.getMethod();
+
+        int limit = rateLimitConfig.getLimit(); // default POST 5/60s
+        if ("GET".equalsIgnoreCase(method) && path.startsWith("/api/queues/status")) {
+            limit = 10; // TASK-03-B: Rate limit pada endpoint ini: max 10 request/menit
+        }
+
         String identifier = request.getHeader("X-User-Id");
         if (identifier == null || identifier.trim().isEmpty()) {
-            identifier = request.getRemoteAddr(); // Fallback ke IP jika header tidak ada
+            identifier = request.getRemoteAddr();
         }
+        
+        // Scope limit per endpoint
+        String limitKey = path + ":" + identifier;
 
         long now = Instant.now().toEpochMilli();
         long windowStart = now - (rateLimitConfig.getWindowSeconds() * 1000L);
 
-        // Ambil atau buat queue untuk user ini
-        Queue<Long> requests = userRequests.computeIfAbsent(identifier, k -> new ConcurrentLinkedQueue<>());
+        Queue<Long> requests = userRequests.computeIfAbsent(limitKey, k -> new ConcurrentLinkedQueue<>());
 
-        // Hapus request yang sudah melewati window 60 detik (Sliding Window logic)
         while (!requests.isEmpty() && requests.peek() < windowStart) {
             requests.poll();
         }
 
         int currentRequests = requests.size();
-        int limit = rateLimitConfig.getLimit();
 
         if (currentRequests >= limit) {
-            // Hitung sisa waktu sampai request tertua expire (reset window)
             long oldestRequestTime = requests.peek();
             long retryAfterMillis = (oldestRequestTime + (rateLimitConfig.getWindowSeconds() * 1000L)) - now;
             long retryAfterSeconds = (retryAfterMillis / 1000) + 1;
 
-            log.warn("Rate limit exceeded for user: {}. Window limit: {}/{}s", identifier, limit, rateLimitConfig.getWindowSeconds());
+            log.warn("Rate limit exceeded for key: {}. Window limit: {}/{}s", limitKey, limit, rateLimitConfig.getWindowSeconds());
 
-            // Set response HTTP 429
-            response.setStatus(429); // 429 Too Many Requests
+            response.setStatus(429);
             response.setContentType("application/json");
 
-            // Set standard rate limit headers
             response.setHeader("X-RateLimit-Limit", String.valueOf(limit));
             response.setHeader("X-RateLimit-Remaining", "0");
             response.setHeader("X-RateLimit-Reset", String.valueOf((oldestRequestTime + (rateLimitConfig.getWindowSeconds() * 1000L)) / 1000));
             response.setHeader("Retry-After", String.valueOf(retryAfterSeconds));
 
-            // Set structured JSON error response
-            Map<String, Object> errorBody = new HashMap<>();
-            errorBody.put("error_code", "RATE_LIMIT_EXCEEDED");
-            errorBody.put("retryable", true);
-            errorBody.put("retry_after", retryAfterSeconds);
+            // Use X-Request-ID from attribute
+            Object reqIdObj = request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
+            String requestId = reqIdObj != null ? reqIdObj.toString() : "unknown";
+
+            com.jkn.backend.dto.ErrorResponse errorBody = new com.jkn.backend.dto.ErrorResponse(
+                    "RATE_LIMIT_EXCEEDED",
+                    "Terlalu banyak request. Silakan coba lagi.",
+                    true,
+                    (int) retryAfterSeconds,
+                    requestId
+            );
 
             response.getWriter().write(objectMapper.writeValueAsString(errorBody));
-            return; // Hentikan eksekusi chain
+            return;
         }
 
-        // Tambahkan request baru ke dalam window
         requests.offer(now);
 
-        // Lanjutkan request & set header normal
         response.setHeader("X-RateLimit-Limit", String.valueOf(limit));
         response.setHeader("X-RateLimit-Remaining", String.valueOf(limit - requests.size()));
         
