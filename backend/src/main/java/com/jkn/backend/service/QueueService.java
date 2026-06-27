@@ -7,7 +7,7 @@ import java.util.List;
 
 public interface QueueService {
 
-    QueueResponse createQueue(CreateQueueRequest request);
+    QueueResponse createQueue(CreateQueueRequest request, String idempotencyKey);
 
     QueueResponse getQueueById(Long id);
 

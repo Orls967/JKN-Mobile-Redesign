@@ -24,8 +24,10 @@ public class QueueController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<QueueResponse>> createQueue(@RequestBody CreateQueueRequest request) {
-        QueueResponse response = queueService.createQueue(request);
+    public ResponseEntity<ApiResponse<QueueResponse>> createQueue(
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody CreateQueueRequest request) {
+        QueueResponse response = queueService.createQueue(request, idempotencyKey);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(response));
     }
 

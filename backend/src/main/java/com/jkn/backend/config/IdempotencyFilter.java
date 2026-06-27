@@ -12,7 +12,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.util.ContentCachingResponseWrapper;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -80,33 +79,15 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         );
         idempotencyLogRepository.saveAndFlush(newLog);
 
-        ContentCachingResponseWrapper responseWrapper = new ContentCachingResponseWrapper(response);
-
         try {
-            // Lanjutkan eksekusi controller
-            filterChain.doFilter(request, responseWrapper);
-
-            // Jika sukses / valid, simpan response body
-            int status = responseWrapper.getStatus();
-            if (status >= 200 && status < 300) {
-                byte[] responseArray = responseWrapper.getContentAsByteArray();
-                String responseBody = new String(responseArray, responseWrapper.getCharacterEncoding());
-
-                newLog.setStatus(IdempotencyStatus.COMPLETED);
-                newLog.setResponseBody(responseBody);
-                idempotencyLogRepository.save(newLog);
-            } else {
-                // Jika error, hapus log atau tandai failed agar user bisa retry
-                newLog.setStatus(IdempotencyStatus.FAILED);
-                idempotencyLogRepository.save(newLog);
-            }
+            // Lanjutkan eksekusi controller. 
+            // Update ke COMPLETED & simpan responseBody akan ditangani oleh QueueServiceImpl secara atomic.
+            filterChain.doFilter(request, response);
         } catch (Exception e) {
+            // Jika error dari layer controller/service, ubah menjadi FAILED agar bisa di-retry.
             newLog.setStatus(IdempotencyStatus.FAILED);
             idempotencyLogRepository.save(newLog);
             throw e;
-        } finally {
-            // Penting: copy isi wrapper ke response asli
-            responseWrapper.copyBodyToResponse();
         }
     }
 }

@@ -28,22 +28,31 @@ public class QueueServiceImpl implements QueueService {
     private final QueueEventPublisher queueEventPublisher;
     private final QueueMetricsService metricsService;
     private final com.jkn.backend.repository.DistributedLockRepository distributedLockRepository;
+    private final com.jkn.backend.repository.IdempotencyLogRepository idempotencyLogRepository;
+    private final com.jkn.backend.repository.QueueTicketRepository queueTicketRepository;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public QueueServiceImpl(QueueCounterRepository queueCounterRepository,
                             QueueCallLogRepository queueCallLogRepository,
                             QueueEventPublisher queueEventPublisher,
                             QueueMetricsService metricsService,
-                            com.jkn.backend.repository.DistributedLockRepository distributedLockRepository) {
+                            com.jkn.backend.repository.DistributedLockRepository distributedLockRepository,
+                            com.jkn.backend.repository.IdempotencyLogRepository idempotencyLogRepository,
+                            com.jkn.backend.repository.QueueTicketRepository queueTicketRepository,
+                            com.fasterxml.jackson.databind.ObjectMapper objectMapper) {
         this.queueCounterRepository = queueCounterRepository;
         this.queueCallLogRepository = queueCallLogRepository;
         this.queueEventPublisher = queueEventPublisher;
         this.metricsService = metricsService;
         this.distributedLockRepository = distributedLockRepository;
+        this.idempotencyLogRepository = idempotencyLogRepository;
+        this.queueTicketRepository = queueTicketRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    @Transactional
-    public QueueResponse createQueue(CreateQueueRequest request) {
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    public QueueResponse createQueue(CreateQueueRequest request, String idempotencyKey) {
         return metricsService.getRegistrationTimer().record(() -> {
             try {
                 // Implementasi TASK-01-B: Distributed Lock (pg_advisory_xact_lock)
@@ -70,8 +79,36 @@ public class QueueServiceImpl implements QueueService {
                 QueueCounter saved = queueCounterRepository.save(queueCounter);
                 log.info("Queue created: queue_id={} counter_name={}",
                         saved.getId(), saved.getCounterName());
+                
+                // Implementasi TASK-05-A (Step 3): Insert record antrean
+                com.jkn.backend.entity.QueueTicket ticket = new com.jkn.backend.entity.QueueTicket(
+                        saved.getId(),
+                        request.getUserId() != null ? request.getUserId() : "unknown",
+                        request.getFaskesId() != null ? request.getFaskesId() : 0L,
+                        java.time.LocalDate.now(),
+                        saved.getNextNumber() - 1
+                );
+                queueTicketRepository.save(ticket);
+                
                 metricsService.recordRegistrationSuccess();
-                return mapToResponse(saved);
+                
+                QueueResponse queueResponse = mapToResponse(saved);
+                
+                // Update Idempotency Log to COMPLETED inside the transaction
+                if (idempotencyKey != null && !idempotencyKey.trim().isEmpty()) {
+                    idempotencyLogRepository.findById(idempotencyKey).ifPresent(logEntry -> {
+                        try {
+                            logEntry.setStatus(com.jkn.backend.entity.IdempotencyStatus.COMPLETED);
+                            com.jkn.backend.dto.ApiResponse<QueueResponse> apiResp = com.jkn.backend.dto.ApiResponse.created(queueResponse);
+                            logEntry.setResponseBody(objectMapper.writeValueAsString(apiResp));
+                            idempotencyLogRepository.save(logEntry);
+                        } catch (Exception ex) {
+                            log.error("Failed to serialize idempotency response", ex);
+                        }
+                    });
+                }
+                
+                return queueResponse;
             } catch (com.jkn.backend.exception.QueueInProgressException e) {
                 // Jangan record sebagai error sistem jika murni karena lock
                 throw e;
