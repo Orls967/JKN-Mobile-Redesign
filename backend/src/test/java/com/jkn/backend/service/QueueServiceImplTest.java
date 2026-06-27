@@ -28,6 +28,10 @@ class QueueServiceImplTest {
     private QueueMetricsService metricsService;
     private QueueServiceImpl queueService;
 
+    private com.jkn.backend.repository.IdempotencyLogRepository idempotencyLogRepository;
+    private com.jkn.backend.repository.QueueTicketRepository queueTicketRepository;
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
     @BeforeEach
     void setUp() {
         queueCounterRepository = Mockito.mock(QueueCounterRepository.class);
@@ -35,16 +39,22 @@ class QueueServiceImplTest {
         queueEventPublisher = Mockito.mock(QueueEventPublisher.class);
         
         io.micrometer.core.instrument.simple.SimpleMeterRegistry registry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
-        QueueMetricsService metricsService = new QueueMetricsService(registry);
+        metricsService = new QueueMetricsService(registry);
 
         distributedLockRepository = Mockito.mock(com.jkn.backend.repository.DistributedLockRepository.class);
+        idempotencyLogRepository = Mockito.mock(com.jkn.backend.repository.IdempotencyLogRepository.class);
+        queueTicketRepository = Mockito.mock(com.jkn.backend.repository.QueueTicketRepository.class);
+        objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
         
         queueService = new QueueServiceImpl(
             queueCounterRepository, 
             queueCallLogRepository, 
             queueEventPublisher, 
             metricsService,
-            distributedLockRepository
+            distributedLockRepository,
+            idempotencyLogRepository,
+            queueTicketRepository,
+            objectMapper
         );
     }
 
@@ -62,7 +72,7 @@ class QueueServiceImplTest {
         Mockito.when(queueCounterRepository.save(Mockito.any(QueueCounter.class))).thenReturn(savedQueue);
 
         // Act
-        QueueResponse response = queueService.createQueue(request);
+        QueueResponse response = queueService.createQueue(request, "dummy-idempotency-key");
 
         // Assert
         org.junit.jupiter.api.Assertions.assertNotNull(response);
