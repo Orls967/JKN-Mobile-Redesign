@@ -14,4 +14,5 @@ public interface QueueService {
     List<QueueResponse> getAllQueues();
 
     QueueResponse nextQueue(Long id);
+    com.jkn.backend.dto.QueueStatusResponse getQueueStatusByIdempotencyKey(String idempotencyKey);
 }

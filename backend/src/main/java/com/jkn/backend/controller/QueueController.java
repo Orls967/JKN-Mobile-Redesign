@@ -60,18 +60,15 @@ public class QueueController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<ApiResponse<Object>> handleIllegalStateException(IllegalStateException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.error(HttpStatus.CONFLICT.value(), ex.getMessage()));
-    }
-
-    @ExceptionHandler(com.jkn.backend.exception.QueueInProgressException.class)
-    public ResponseEntity<java.util.Map<String, Object>> handleQueueInProgress(com.jkn.backend.exception.QueueInProgressException ex) {
-        java.util.Map<String, Object> errorResponse = new java.util.HashMap<>();
-        errorResponse.put("error_code", "QUEUE_IN_PROGRESS");
-        errorResponse.put("retryable", ex.isRetryable());
-        errorResponse.put("retry_after", ex.getRetryAfter());
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorResponse);
+    @GetMapping("/status")
+    public ResponseEntity<com.jkn.backend.dto.QueueStatusResponse> getQueueStatus(
+            @RequestParam("idempotency_key") String idempotencyKey) {
+        com.jkn.backend.dto.QueueStatusResponse status = queueService.getQueueStatusByIdempotencyKey(idempotencyKey);
+        
+        if ("PROCESSING".equals(status.getStatus())) {
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(status);
+        }
+        
+        return ResponseEntity.ok(status);
     }
 }

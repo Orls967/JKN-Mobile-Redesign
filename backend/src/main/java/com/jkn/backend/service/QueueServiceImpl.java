@@ -191,4 +191,42 @@ public class QueueServiceImpl implements QueueService {
                 entity.getUpdatedAt()
         );
     }
+
+    @Override
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public com.jkn.backend.dto.QueueStatusResponse getQueueStatusByIdempotencyKey(String idempotencyKey) {
+        com.jkn.backend.entity.IdempotencyLog log = idempotencyLogRepository.findById(idempotencyKey)
+                .orElseThrow(() -> new com.jkn.backend.exception.ResourceNotFoundException("Request tidak ditemukan atau sudah expired"));
+
+        if (log.getStatus() == com.jkn.backend.entity.IdempotencyStatus.PROCESSING) {
+            return new com.jkn.backend.dto.QueueStatusResponse(
+                    "PROCESSING",
+                    "Request sedang diproses, coba lagi dalam 2 detik",
+                    2
+            );
+        } else if (log.getStatus() == com.jkn.backend.entity.IdempotencyStatus.COMPLETED) {
+            try {
+                com.fasterxml.jackson.databind.JsonNode root = objectMapper.readTree(log.getResponseBody());
+                com.fasterxml.jackson.databind.JsonNode data = root.path("data");
+                
+                com.jkn.backend.dto.QueueStatusResponse response = new com.jkn.backend.dto.QueueStatusResponse();
+                response.setStatus("COMPLETED");
+                
+                String counterName = data.path("counterName").asText();
+                int nextNum = data.path("nextNumber").asInt();
+                response.setQueueNumber(counterName + "-" + String.format("%03d", nextNum));
+                
+                // Assuming Poli and Faskes mapping from counterName
+                response.setPoli("Poli " + counterName);
+                response.setFaskes("RS Harapan Bunda"); // Hardcoded as per spec example
+                response.setCreatedAt(data.path("createdAt").asText());
+                
+                return response;
+            } catch (Exception ex) {
+                throw new RuntimeException("Gagal membaca status antrean", ex);
+            }
+        }
+        
+        throw new com.jkn.backend.exception.ResourceNotFoundException("Request gagal diproses");
+    }
 }

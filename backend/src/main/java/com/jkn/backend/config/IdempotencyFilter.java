@@ -60,11 +60,22 @@ public class IdempotencyFilter extends OncePerRequestFilter {
                 response.getWriter().flush();
                 return;
             } else if (log.getStatus() == IdempotencyStatus.PROCESSING) {
-                // Return 202 Accepted + polling hint
-                response.setStatus(HttpStatus.ACCEPTED.value());
+                // Return 409 Conflict + polling hint (As per catalog QUEUE_IN_PROGRESS)
+                response.setStatus(HttpStatus.CONFLICT.value());
                 response.setContentType("application/json");
-                ApiResponse<Object> apiResponse = ApiResponse.error(HttpStatus.ACCEPTED.value(), "Request sedang diproses");
-                response.getWriter().write(objectMapper.writeValueAsString(apiResponse));
+                
+                Object reqIdObj = request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
+                String requestId = reqIdObj != null ? reqIdObj.toString() : "unknown";
+
+                com.jkn.backend.dto.ErrorResponse errorBody = new com.jkn.backend.dto.ErrorResponse(
+                        "QUEUE_IN_PROGRESS",
+                        "Request sedang diproses",
+                        true,
+                        2, // retry_after
+                        requestId
+                );
+                
+                response.getWriter().write(objectMapper.writeValueAsString(errorBody));
                 response.getWriter().flush();
                 return;
             }
