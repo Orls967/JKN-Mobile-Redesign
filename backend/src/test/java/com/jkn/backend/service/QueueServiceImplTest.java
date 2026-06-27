@@ -25,6 +25,7 @@ class QueueServiceImplTest {
     private QueueCallLogRepository queueCallLogRepository;
     private QueueEventPublisher queueEventPublisher;
     private com.jkn.backend.repository.DistributedLockRepository distributedLockRepository;
+    private QueueMetricsService metricsService;
     private QueueServiceImpl queueService;
 
     @BeforeEach
@@ -50,7 +51,7 @@ class QueueServiceImplTest {
     @Test
     void createQueue_shouldAcquireLockAndReturnResponse() {
         // Arrange
-        CreateQueueRequest request = new CreateQueueRequest("Poli Gigi");
+        CreateQueueRequest request = new CreateQueueRequest("Poli Gigi", "user123", 1L);
         QueueCounter savedQueue = new QueueCounter();
         savedQueue.setId(1L);
         savedQueue.setCounterName("Poli Gigi");

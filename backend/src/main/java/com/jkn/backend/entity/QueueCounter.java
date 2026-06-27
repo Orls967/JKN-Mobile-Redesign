@@ -4,10 +4,15 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "queue_counter")
+@Table(name = "queue_counter", indexes = {
+    @Index(name = "idx_queue_counter_faskes_tanggal_status", columnList = "faskes_id, tanggal, status"),
+    @Index(name = "idx_queue_counter_user_tanggal", columnList = "user_id, tanggal"),
+    @Index(name = "idx_queue_counter_name", columnList = "counter_name")
+})
 public class QueueCounter {
 
     @Id
@@ -39,6 +44,19 @@ public class QueueCounter {
 
     @Column(name = "average_service_time")
     private Long averageServiceTime = 0L; 
+
+    // --- Kolom baru untuk index optimization (TASK-04-A) ---
+    @Column(name = "faskes_id")
+    private Long faskesId;
+
+    @Column(name = "tanggal")
+    private LocalDate tanggal;
+
+    @Column(name = "status", length = 20)
+    private String status = "ACTIVE";
+
+    @Column(name = "user_id", length = 100)
+    private String userId;
 
     public QueueCounter() {
     }
@@ -79,4 +97,17 @@ public class QueueCounter {
 
     public Long getAverageServiceTime() { return averageServiceTime; }
     public void setAverageServiceTime(Long averageServiceTime) { this.averageServiceTime = averageServiceTime; }
+
+    // --- GETTER & SETTER UNTUK INDEX OPTIMIZATION (TASK-04-A) ---
+    public Long getFaskesId() { return faskesId; }
+    public void setFaskesId(Long faskesId) { this.faskesId = faskesId; }
+
+    public LocalDate getTanggal() { return tanggal; }
+    public void setTanggal(LocalDate tanggal) { this.tanggal = tanggal; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
 }

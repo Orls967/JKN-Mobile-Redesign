@@ -48,9 +48,7 @@ public class QueueController {
         if (targetNumber < 0) {
             throw new IllegalArgumentException("Target number tidak boleh negatif");
         }
-        int etaMinutes = queueEtaService.calculateEtaMinutes(id, targetNumber);
-        long avgSeconds = queueEtaService.getAverageServiceSeconds(id);
-        com.jkn.backend.dto.EtaResponse etaResponse = new com.jkn.backend.dto.EtaResponse(id, targetNumber, etaMinutes, avgSeconds);
+        com.jkn.backend.dto.EtaResponse etaResponse = queueEtaService.calculateEta(id, targetNumber);
         return ResponseEntity.ok(ApiResponse.success(etaResponse));
     }
 
