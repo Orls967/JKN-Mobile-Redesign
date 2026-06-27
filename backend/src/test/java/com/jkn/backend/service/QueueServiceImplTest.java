@@ -1,5 +1,6 @@
 package com.jkn.backend.service;
 
+import com.jkn.backend.dto.CreateQueueRequest;
 import com.jkn.backend.dto.QueueResponse;
 import com.jkn.backend.entity.QueueCallLog;
 import com.jkn.backend.entity.QueueCounter;
@@ -23,6 +24,7 @@ class QueueServiceImplTest {
     private QueueCounterRepository queueCounterRepository;
     private QueueCallLogRepository queueCallLogRepository;
     private QueueEventPublisher queueEventPublisher;
+    private com.jkn.backend.repository.DistributedLockRepository distributedLockRepository;
     private QueueMetricsService metricsService;
     private QueueServiceImpl queueService;
 
@@ -33,9 +35,38 @@ class QueueServiceImplTest {
         queueEventPublisher = Mockito.mock(QueueEventPublisher.class);
         
         io.micrometer.core.instrument.simple.SimpleMeterRegistry registry = new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
-        metricsService = new QueueMetricsService(registry);
+        QueueMetricsService metricsService = new QueueMetricsService(registry);
+
+        distributedLockRepository = Mockito.mock(com.jkn.backend.repository.DistributedLockRepository.class);
         
-        queueService = new QueueServiceImpl(queueCounterRepository, queueCallLogRepository, queueEventPublisher, metricsService);
+        queueService = new QueueServiceImpl(
+            queueCounterRepository, 
+            queueCallLogRepository, 
+            queueEventPublisher, 
+            metricsService,
+            distributedLockRepository
+        );
+    }
+
+    @Test
+    void createQueue_shouldAcquireLockAndReturnResponse() {
+        // Arrange
+        CreateQueueRequest request = new CreateQueueRequest("Poli Gigi", "user123", 1L);
+        QueueCounter savedQueue = new QueueCounter();
+        savedQueue.setId(1L);
+        savedQueue.setCounterName("Poli Gigi");
+        savedQueue.setCurrentNumber(0);
+        savedQueue.setNextNumber(1);
+
+        Mockito.when(distributedLockRepository.tryAcquireLock(Mockito.anyString())).thenReturn(true);
+        Mockito.when(queueCounterRepository.save(Mockito.any(QueueCounter.class))).thenReturn(savedQueue);
+
+        // Act
+        QueueResponse response = queueService.createQueue(request);
+
+        // Assert
+        org.junit.jupiter.api.Assertions.assertNotNull(response);
+        org.junit.jupiter.api.Assertions.assertEquals("Poli Gigi", response.getCounterName());
     }
 
     @Test
