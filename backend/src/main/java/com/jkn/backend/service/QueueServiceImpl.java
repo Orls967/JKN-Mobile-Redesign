@@ -51,7 +51,7 @@ public class QueueServiceImpl implements QueueService {
     }
 
     @Override
-    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ)
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ, timeout = 9)
     public QueueResponse createQueue(CreateQueueRequest request, String idempotencyKey) {
         return metricsService.getRegistrationTimer().record(() -> {
             try {

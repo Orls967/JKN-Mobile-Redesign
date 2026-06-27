@@ -9,17 +9,17 @@ spring:
     driver-class-name: org.postgresql.Driver
     hikari:
       pool-name: JknHikariPool
-      maximum-pool-size: 20
-      minimum-idle: 10
-      max-lifetime: 1800000
-      idle-timeout: 600000
+      maximum-pool-size: 15
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      # TASK-02-B: Timeout Matrix - DB connection pool timeout 5s to prevent stuck threads
       connection-timeout: 5000
-      leak-detection-threshold: 30000
       register-mbeans: true
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     properties:
       jakarta.persistence.query.timeout: 5000
@@ -50,4 +50,13 @@ info:
   app:
     name: JKN Mobile Redesign - Queue Service
     version: 0.0.1-SNAPSHOT
+
+# TASK-02-B: Timeout Matrix - HTTP Handler Timeout 10s
+server.connection-timeout: 10000
+
+# TASK-02-A: Rate Limiting
+app:
+  rate-limit:
+    limit: 5
+    window-seconds: 60
 
