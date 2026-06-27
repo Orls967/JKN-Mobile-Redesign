@@ -27,21 +27,41 @@ public class QueueServiceImpl implements QueueService {
     private final QueueCallLogRepository queueCallLogRepository;
     private final QueueEventPublisher queueEventPublisher;
     private final QueueMetricsService metricsService;
+    private final com.jkn.backend.repository.DistributedLockRepository distributedLockRepository;
 
     public QueueServiceImpl(QueueCounterRepository queueCounterRepository,
                             QueueCallLogRepository queueCallLogRepository,
                             QueueEventPublisher queueEventPublisher,
-                            QueueMetricsService metricsService) {
+                            QueueMetricsService metricsService,
+                            com.jkn.backend.repository.DistributedLockRepository distributedLockRepository) {
         this.queueCounterRepository = queueCounterRepository;
         this.queueCallLogRepository = queueCallLogRepository;
         this.queueEventPublisher = queueEventPublisher;
         this.metricsService = metricsService;
+        this.distributedLockRepository = distributedLockRepository;
     }
 
     @Override
+    @Transactional
     public QueueResponse createQueue(CreateQueueRequest request) {
         return metricsService.getRegistrationTimer().record(() -> {
             try {
+                // Implementasi TASK-01-B: Distributed Lock (pg_advisory_xact_lock)
+                // Lock ini fail-fast, timeout 0ms. Berlangsung selama durasi transaksi (karena @Transactional).
+                java.time.LocalDate today = java.time.LocalDate.now();
+                String lockKey = String.format("queue_lock:%s:%d:%s", 
+                    request.getUserId() != null ? request.getUserId() : "unknown",
+                    request.getFaskesId() != null ? request.getFaskesId() : 0L,
+                    today.toString()
+                );
+                
+                boolean lockAcquired = distributedLockRepository.tryAcquireLock(lockKey);
+                
+                if (!lockAcquired) {
+                    log.warn("Failed to acquire lock for queue creation: lock_key={}", lockKey);
+                    throw new com.jkn.backend.exception.QueueInProgressException("Pendaftaran antrean sedang diproses", true, 2);
+                }
+
                 QueueCounter queueCounter = new QueueCounter();
                 queueCounter.setCounterName(request.getCounterName());
                 queueCounter.setCurrentNumber(0);
@@ -52,6 +72,9 @@ public class QueueServiceImpl implements QueueService {
                         saved.getId(), saved.getCounterName());
                 metricsService.recordRegistrationSuccess();
                 return mapToResponse(saved);
+            } catch (com.jkn.backend.exception.QueueInProgressException e) {
+                // Jangan record sebagai error sistem jika murni karena lock
+                throw e;
             } catch (Exception e) {
                 metricsService.recordRegistrationFailed();
                 throw e;
