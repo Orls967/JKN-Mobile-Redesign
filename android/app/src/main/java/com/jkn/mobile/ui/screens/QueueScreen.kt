@@ -43,7 +43,7 @@ fun QueueScreen(
 
     // PERBAIKAN: Fetch queue dengan meneruskan context ke ViewModel
     LaunchedEffect(Unit) {
-        viewModel.fetchQueue(1, context)
+        viewModel.fetchQueue(130L, context)
     }
 
     Scaffold(
@@ -93,7 +93,7 @@ fun QueueScreen(
                         ErrorContent(
                             message = uiState.errorMessage!!,
                             // PERBAIKAN: Meneruskan context saat retry
-                            onRetry = { viewModel.fetchQueue(1, context) }
+                            onRetry = { viewModel.fetchQueue(130L, context) }
                         )
                     }
 
