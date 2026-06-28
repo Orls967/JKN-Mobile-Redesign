@@ -37,7 +37,6 @@ class QueueViewModel : ViewModel() {
     private val repository = QueueRepository()
     private val crashlytics = FirebaseCrashlytics.getInstance()
 
-    private val apiService = RetrofitClient.apiService
 
     private val _uiState = MutableStateFlow(QueueUiState())
     val uiState: StateFlow<QueueUiState> = _uiState.asStateFlow()
