@@ -37,6 +37,11 @@ public class QueueController {
     @PostMapping("/register")
     public ResponseEntity<?> registerQueue(@RequestBody java.util.Map<String, String> request) {
         String result = bpjsClient.checkBpjs(request.get("nik"));
+        if ("MODE_DARURAT".equals(result)) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE)
+                    .header("X-Degraded-Mode", "true")
+                    .body(java.util.Map.of("status", "MODE_DARURAT", "message", "Verifikasi ditangguhkan, silakan antre."));
+        }
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 

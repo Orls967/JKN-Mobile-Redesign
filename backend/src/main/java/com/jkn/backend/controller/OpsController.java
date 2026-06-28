@@ -15,9 +15,17 @@ import java.util.List;
 public class OpsController {
 
     private final CircuitBreakerRegistry circuitBreakerRegistry;
+    private final com.jkn.backend.client.BpjsClient bpjsClient;
 
-    public OpsController(CircuitBreakerRegistry circuitBreakerRegistry) {
+    public OpsController(CircuitBreakerRegistry circuitBreakerRegistry, com.jkn.backend.client.BpjsClient bpjsClient) {
         this.circuitBreakerRegistry = circuitBreakerRegistry;
+        this.bpjsClient = bpjsClient;
+    }
+
+    @PostMapping("/simulate-bpjs-down")
+    public ResponseEntity<String> simulateBpjsDown(@RequestParam boolean down) {
+        bpjsClient.setSimulatedFailure(down);
+        return ResponseEntity.ok("BPJS Simulated Failure set to: " + down);
     }
 
     @GetMapping("/status")
