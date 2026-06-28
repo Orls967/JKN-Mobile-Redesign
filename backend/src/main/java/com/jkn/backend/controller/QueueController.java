@@ -31,6 +31,15 @@ public class QueueController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(response));
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.jkn.backend.client.BpjsClient bpjsClient;
+
+    @PostMapping("/register")
+    public ResponseEntity<?> registerQueue(@RequestBody java.util.Map<String, String> request) {
+        String result = bpjsClient.checkBpjs(request.get("nik"));
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
     @GetMapping
     public ResponseEntity<ApiResponse<List<QueueResponse>>> getAllQueues() {
         List<QueueResponse> responses = queueService.getAllQueues();
