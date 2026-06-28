@@ -2,12 +2,13 @@ package com.jkn.backend.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import org.springframework.data.domain.Persistable;
 
 @Entity
 @Table(name = "idempotency_log", indexes = {
     @Index(name = "idx_idempotency_expires", columnList = "expires_at")
 })
-public class IdempotencyLog {
+public class IdempotencyLog implements Persistable<String> {
 
     @Id
     @Column(name = "idempotency_key", length = 255)
@@ -25,6 +26,9 @@ public class IdempotencyLog {
 
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
+
+    @Transient
+    private boolean isNew = true;
 
     public IdempotencyLog() {
     }
@@ -50,4 +54,20 @@ public class IdempotencyLog {
 
     public LocalDateTime getExpiresAt() { return expiresAt; }
     public void setExpiresAt(LocalDateTime expiresAt) { this.expiresAt = expiresAt; }
+
+    @Override
+    public String getId() {
+        return idempotencyKey;
+    }
+
+    @Override
+    public boolean isNew() {
+        return isNew;
+    }
+
+    @PostLoad
+    @PostPersist
+    public void markNotNew() {
+        this.isNew = false;
+    }
 }

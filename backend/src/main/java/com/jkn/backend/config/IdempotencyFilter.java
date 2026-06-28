@@ -1,7 +1,7 @@
 package com.jkn.backend.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jkn.backend.dto.ApiResponse;
+import com.jkn.backend.dto.ErrorResponse;
 import com.jkn.backend.entity.IdempotencyLog;
 import com.jkn.backend.entity.IdempotencyStatus;
 import com.jkn.backend.repository.IdempotencyLogRepository;
@@ -9,6 +9,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -21,7 +22,7 @@ import java.util.Optional;
 public class IdempotencyFilter extends OncePerRequestFilter {
 
     private static final String IDEMPOTENCY_HEADER = "X-Idempotency-Key";
-    
+
     private final IdempotencyLogRepository idempotencyLogRepository;
     private final ObjectMapper objectMapper;
 
@@ -32,8 +33,8 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        // Hanya apply pada endpoint POST (mutasi) antrean
-        return !request.getRequestURI().startsWith("/api/queues") || !request.getMethod().equalsIgnoreCase("POST");
+        return !request.getRequestURI().startsWith("/api/queues")
+                || !request.getMethod().equalsIgnoreCase("POST");
     }
 
     @Override
@@ -42,60 +43,108 @@ public class IdempotencyFilter extends OncePerRequestFilter {
 
         String idempotencyKey = request.getHeader(IDEMPOTENCY_HEADER);
 
-        // Jika tidak ada header, teruskan request (meskipun di production Android wajib ngirim)
         if (idempotencyKey == null || idempotencyKey.trim().isEmpty()) {
             filterChain.doFilter(request, response);
             return;
         }
+
+        System.out.println(
+            "FILTER START : "
+            + Thread.currentThread().getName()
+            + " -> "
+            + idempotencyKey
+        );
 
         Optional<IdempotencyLog> existingLogOpt = idempotencyLogRepository.findById(idempotencyKey);
 
         if (existingLogOpt.isPresent()) {
             IdempotencyLog log = existingLogOpt.get();
             if (log.getStatus() == IdempotencyStatus.COMPLETED) {
-                // Kembalikan response yang di-cache
                 response.setStatus(HttpStatus.OK.value());
                 response.setContentType("application/json");
                 response.getWriter().write(log.getResponseBody());
                 response.getWriter().flush();
                 return;
             } else if (log.getStatus() == IdempotencyStatus.PROCESSING) {
-                // Return 409 Conflict + polling hint (As per catalog QUEUE_IN_PROGRESS)
                 response.setStatus(HttpStatus.CONFLICT.value());
                 response.setContentType("application/json");
-                
+
                 Object reqIdObj = request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
                 String requestId = reqIdObj != null ? reqIdObj.toString() : "unknown";
 
-                com.jkn.backend.dto.ErrorResponse errorBody = new com.jkn.backend.dto.ErrorResponse(
+                ErrorResponse errorBody = new ErrorResponse(
                         "QUEUE_IN_PROGRESS",
                         "Request sedang diproses",
                         true,
-                        2, // retry_after
+                        2,
                         requestId
                 );
-                
+
                 response.getWriter().write(objectMapper.writeValueAsString(errorBody));
                 response.getWriter().flush();
                 return;
             }
         }
 
-        // Simpan state awal: PROCESSING (TTL 24 jam)
+
         IdempotencyLog newLog = new IdempotencyLog(
                 idempotencyKey,
                 IdempotencyStatus.PROCESSING,
                 LocalDateTime.now(),
                 LocalDateTime.now().plusHours(24)
         );
-        idempotencyLogRepository.saveAndFlush(newLog);
+
+        System.out.println("========== SAVE NEW LOG ==========");
+        System.out.println("Thread = " + Thread.currentThread().getName());
+        System.out.println("Key    = " + idempotencyKey);
+        
+        try {
+            idempotencyLogRepository.saveAndFlush(newLog);
+            System.out.println(
+                "INSERT PROCESSING : "
+                + Thread.currentThread().getName()
+            );
+
+        } catch (DataIntegrityViolationException ex) {  
+            System.out.println("========== DUPLICATE ==========");
+            System.out.println("Thread = " + Thread.currentThread().getName());
+
+            IdempotencyLog existing = idempotencyLogRepository.findById(idempotencyKey).orElseThrow();
+
+            if (existing.getStatus() == IdempotencyStatus.PROCESSING) {
+                response.setStatus(HttpStatus.CONFLICT.value());
+                response.setContentType("application/json");
+
+                Object reqIdObj = request.getAttribute(RequestIdFilter.REQUEST_ID_ATTRIBUTE);
+                String requestId = reqIdObj != null ? reqIdObj.toString() : "unknown";
+
+                ErrorResponse errorBody = new ErrorResponse(
+                        "QUEUE_IN_PROGRESS",
+                        "Request sedang diproses",
+                        true,
+                        2,
+                        requestId
+                );
+
+                response.getWriter().write(objectMapper.writeValueAsString(errorBody));
+                response.getWriter().flush();
+                return;
+            }
+
+            if (existing.getStatus() == IdempotencyStatus.COMPLETED) {
+                response.setStatus(HttpStatus.OK.value());
+                response.setContentType("application/json");
+                response.getWriter().write(existing.getResponseBody());
+                response.getWriter().flush();
+                return;
+            }
+
+            throw ex;
+        }
 
         try {
-            // Lanjutkan eksekusi controller. 
-            // Update ke COMPLETED & simpan responseBody akan ditangani oleh QueueServiceImpl secara atomic.
             filterChain.doFilter(request, response);
         } catch (Exception e) {
-            // Jika error dari layer controller/service, ubah menjadi FAILED agar bisa di-retry.
             newLog.setStatus(IdempotencyStatus.FAILED);
             idempotencyLogRepository.save(newLog);
             throw e;

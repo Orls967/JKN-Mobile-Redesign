@@ -54,9 +54,9 @@ public class RateLimiterFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        int limit = rateLimitConfig.getLimit(); // default POST 5/60s
+        int limit =  100; // default POST 5/60s
         if ("GET".equalsIgnoreCase(method) && path.startsWith("/api/queues/status")) {
-            limit = 10; // TASK-03-B: Rate limit pada endpoint ini: max 10 request/menit
+            limit = 100; // TASK-03-B: Rate limit pada endpoint ini: max 10 request/menit
         }
 
         String identifier = request.getHeader("X-User-Id");
@@ -72,14 +72,19 @@ public class RateLimiterFilter extends OncePerRequestFilter {
 
         Queue<Long> requests = userRequests.computeIfAbsent(limitKey, k -> new ConcurrentLinkedQueue<>());
 
-        while (!requests.isEmpty() && requests.peek() < windowStart) {
+        Long timestamp;
+        while ((timestamp = requests.peek()) != null && timestamp < windowStart) {
             requests.poll();
         }
 
         int currentRequests = requests.size();
 
         if (currentRequests >= limit) {
-            long oldestRequestTime = requests.peek();
+            Long oldestRequestTime = requests.peek();
+            if (oldestRequestTime == null) {
+                oldestRequestTime = now;
+            }
+
             long retryAfterMillis = (oldestRequestTime + (rateLimitConfig.getWindowSeconds() * 1000L)) - now;
             long retryAfterSeconds = (retryAfterMillis / 1000) + 1;
 
