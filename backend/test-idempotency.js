@@ -11,7 +11,7 @@ export const options = {
       executor: 'per-vu-iterations',
       vus: 20,
       iterations: 1,
-      maxDuration: '100ms', // Memaksa 20 request dilepas dalam window 100ms
+      maxDuration: '1s', // Memaksa 20 request dilepas secepatnya (K6 min req: 1s)
     },
   },
   thresholds: {
