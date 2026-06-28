@@ -33,7 +33,9 @@ class QueueControllerTest {
     void setUp() {
         MockitoAnnotations.openMocks(this);
         queueController = new QueueController(queueService, queueEtaService);
-        mockMvc = MockMvcBuilders.standaloneSetup(queueController).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(queueController)
+                .setControllerAdvice(new com.jkn.backend.controller.GlobalExceptionHandler())
+                .build();
     }
 
     @Test
@@ -61,7 +63,7 @@ class QueueControllerTest {
         mockMvc.perform(put("/api/queues/1/next")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error_code").value("QUEUE_ALREADY_EXISTS"))
                 .andExpect(jsonPath("$.message").value("Antrean sudah habis"));
     }
 }

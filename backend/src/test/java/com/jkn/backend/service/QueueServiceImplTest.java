@@ -44,7 +44,7 @@ class QueueServiceImplTest {
         distributedLockRepository = Mockito.mock(com.jkn.backend.repository.DistributedLockRepository.class);
         idempotencyLogRepository = Mockito.mock(com.jkn.backend.repository.IdempotencyLogRepository.class);
         queueTicketRepository = Mockito.mock(com.jkn.backend.repository.QueueTicketRepository.class);
-        objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        objectMapper = Mockito.mock(com.fasterxml.jackson.databind.ObjectMapper.class);
         
         queueService = new QueueServiceImpl(
             queueCounterRepository, 
@@ -128,5 +128,51 @@ class QueueServiceImplTest {
                 () -> queueService.nextQueue(queueId)
         );
         assertEquals("Antrean sudah habis", exception.getMessage());
+    }
+    @Test
+    void nextQueue_shouldThrowNotFoundException_whenQueueIdIsInvalid() {
+        // Arrange
+        Long invalidQueueId = 999L;
+        when(queueCounterRepository.findByIdForUpdate(invalidQueueId)).thenReturn(Optional.empty());
+
+        // Act & Assert
+        com.jkn.backend.exception.ResourceNotFoundException exception = org.junit.jupiter.api.Assertions.assertThrows(
+                com.jkn.backend.exception.ResourceNotFoundException.class,
+                () -> queueService.nextQueue(invalidQueueId)
+        );
+        assertEquals("Queue not found with id: 999", exception.getMessage());
+    }
+    @Test
+    void createQueue_shouldThrowException_whenLockNotAcquired() {
+        CreateQueueRequest request = new CreateQueueRequest("Poli Gigi", "user123", 1L);
+        when(distributedLockRepository.tryAcquireLock(any())).thenReturn(false);
+
+        org.junit.jupiter.api.Assertions.assertThrows(
+                com.jkn.backend.exception.QueueInProgressException.class,
+                () -> queueService.createQueue(request, "new-idempotency-key")
+        );
+    }
+
+    @Test
+    void createQueue_shouldUpdateIdempotencyLog_whenIdempotencyKeyIsProvided() throws Exception {
+        CreateQueueRequest request = new CreateQueueRequest("Poli Gigi", "user123", 1L);
+        com.jkn.backend.entity.IdempotencyLog log = new com.jkn.backend.entity.IdempotencyLog();
+        log.setStatus(com.jkn.backend.entity.IdempotencyStatus.PROCESSING);
+        
+        QueueCounter savedQueue = new QueueCounter();
+        savedQueue.setId(10L);
+        savedQueue.setCounterName("Poli Gigi");
+        savedQueue.setCurrentNumber(0);
+        savedQueue.setNextNumber(1);
+
+        when(distributedLockRepository.tryAcquireLock(Mockito.anyString())).thenReturn(true);
+        when(queueCounterRepository.save(any(QueueCounter.class))).thenReturn(savedQueue);
+        when(idempotencyLogRepository.findById("existing-key")).thenReturn(Optional.of(log));
+
+        QueueResponse response = queueService.createQueue(request, "existing-key");
+        
+        assertEquals(10L, response.getId());
+        assertEquals(com.jkn.backend.entity.IdempotencyStatus.COMPLETED, log.getStatus());
+        verify(idempotencyLogRepository).save(log);
     }
 }
