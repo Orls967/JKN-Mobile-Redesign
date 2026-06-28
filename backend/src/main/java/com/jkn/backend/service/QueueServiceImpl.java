@@ -53,6 +53,8 @@ public class QueueServiceImpl implements QueueService {
     @Override
     @Transactional(isolation = org.springframework.transaction.annotation.Isolation.REPEATABLE_READ, timeout = 9)
     public QueueResponse createQueue(CreateQueueRequest request, String idempotencyKey) {
+        log.error("============== MASUK CREATE QUEUE ==============");
+
         return metricsService.getRegistrationTimer().record(() -> {
             try {
                 // Implementasi TASK-01-B: Distributed Lock (pg_advisory_xact_lock)
@@ -64,8 +66,12 @@ public class QueueServiceImpl implements QueueService {
                     today.toString()
                 );
                 
+                log.info("TRY LOCK : {}", lockKey);
+
                 boolean lockAcquired = distributedLockRepository.tryAcquireLock(lockKey);
                 
+                log.info("LOCK RESULT : {} = {}", lockKey, lockAcquired);
+
                 if (!lockAcquired) {
                     log.warn("Failed to acquire lock for queue creation: lock_key={}", lockKey);
                     throw new com.jkn.backend.exception.QueueInProgressException("Pendaftaran antrean sedang diproses", true, 2);
@@ -77,6 +83,8 @@ public class QueueServiceImpl implements QueueService {
                 queueCounter.setNextNumber(1);
 
                 QueueCounter saved = queueCounterRepository.save(queueCounter);
+                log.info("QUEUE CREATED : id={}", saved.getId());
+
                 log.info("Queue created: queue_id={} counter_name={}",
                         saved.getId(), saved.getCounterName());
                 
